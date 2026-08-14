@@ -29,6 +29,7 @@
 #include "storage_worker.h"
 #include "get_weather.h"
 #include "custom.h"
+#include "onenet_mqtt.h"
 
 #define TAG     "MAIN"
 
@@ -54,6 +55,7 @@ void wifi_state_handler(WIFI_STATE state)
         lvgl_msg_send(LVGL_MSG_WIFI_CONNECTED, 0, NULL);
         trigger_ntp_sync();
         weather_request_sync();
+        onenet_start();
 
     } else {
 

@@ -3,13 +3,13 @@
 #include "esp_err.h"
 
 //产品ID
-#define  ONENET_PRODUCT_ID  "J1p6nvhJCw"
+#define  ONENET_PRODUCT_ID  "a0F2sycd0O"
 
 //产品秘钥
-#define  ONENET_ACCESS_KEY  "fZ95pZ2TZ1nPU88RNwO1FxnxeduB2zULBaknpy8Rbek="
+#define  ONENET_ACCESS_KEY  "XXMb1xMpPR0DT8OrHQ8BNfNRK7XHvRnDDUvdN1knUfM=="
 
 //设备名称
-#define ONENET_DEVICE_NAME  "esp32S3"
+#define ONENET_DEVICE_NAME  "ESP32S3"
 
 /**
  * 上报数据
