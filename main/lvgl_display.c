@@ -692,6 +692,11 @@ static void lvgl_process_msg_queue(void)
                     !lv_obj_has_flag(guider_ui.screen_ota_onenet, LV_OBJ_FLAG_HIDDEN) &&
                     guider_ui.screen_ota_onenet_label_status != NULL) {
                     lv_label_set_text(guider_ui.screen_ota_onenet_label_status, msg.str_data);
+                    /* 下载成功：显示 Jump 跳转按钮 */
+                    if (strstr(msg.str_data, "下载成功") != NULL &&
+                        guider_ui.screen_ota_onenet_btn_jump != NULL) {
+                        lv_obj_clear_flag(guider_ui.screen_ota_onenet_btn_jump, LV_OBJ_FLAG_HIDDEN);
+                    }
                 } else if (guider_ui.screen_ota_local != NULL &&
                            !lv_obj_has_flag(guider_ui.screen_ota_local, LV_OBJ_FLAG_HIDDEN)) {
                     local_ota_update_msgbox(msg.str_data);

@@ -14,10 +14,25 @@
 #include "wifi_manager.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include "lvgl_display.h"
+
+/* 平台                   设备(ESP32S3)
+ │ 创建升级任务          │
+ │──(可选)MQTT inform──→│ onenet_ota_start()
+ │                      │
+ │←──GET /check?version─│ 查任务（也可手动触发）
+ │──{tid,target}──────→│ 解析出 tid
+ │                      │
+ │←──GET /download─────│ onenet_ota_download(tid)
+ │──固件字节流(HTTPS)──→│ esp_https_ota
+ │                      │   → 查备用分区
+ │                      │   → 边收边写 esp_ota_write
+ │                      │   → esp_ota_end 校验
+ │                      │
+ │                      │ 等用户点 Jump
+ │                      │ → 切 boot 分区 → 重启 */
 
 /* Decouple OTA from main component to avoid circular dependency/link-order issues. */
-#define LVGL_MSG_OTA_STATUS   5
-extern bool lvgl_msg_send(int type, int32_t param, const void *data);
 
 #define TAG     "onenet_ota"
 
@@ -280,7 +295,7 @@ static void onenet_ota_task(void *param)
         lvgl_msg_send(LVGL_MSG_OTA_STATUS, 0, "升级失败:版本上报失败");
         goto delete_ota_task;
     }
-    //检测升级任务
+    //检测升级任务（type=1 表示应用固件全量升级，平台接受的格式）
     ret = onenet_ota_check_task("1",get_app_verion());
     if(ret != ESP_OK)
     {
