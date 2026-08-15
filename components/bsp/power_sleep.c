@@ -85,6 +85,8 @@ static bool s_need_return_video_list = false;
 static bool s_wifi_resume_after_light_sleep = false;
 static volatile bool s_wake_key_guard_active = false;
 static int32_t s_last_logged_remain = -1;
+/* OTA 等长任务进行中：非零则阻止自动睡眠 */
+static volatile uint32_t s_sleep_block_count = 0;
 
 extern void st7789_hw_init(void);
 extern volatile bool g_is_sleeping;
@@ -324,6 +326,20 @@ void power_sleep_reset_timer(void)
     s_last_activity_time = power_sleep_now_seconds();
 }
 
+void power_sleep_block(void)
+{
+    s_sleep_block_count++;
+    s_last_activity_time = power_sleep_now_seconds();
+}
+
+void power_sleep_unblock(void)
+{
+    if (s_sleep_block_count > 0U) {
+        s_sleep_block_count--;
+    }
+    s_last_activity_time = power_sleep_now_seconds();
+}
+
 void power_sleep_request_sleep(void)
 {
     s_force_sleep = true;
@@ -486,9 +502,9 @@ static void power_sleep_task(void *param)
             ESP_LOGI(TAG, "sleep countdown: %lu s", (unsigned long)remain);
         }
 
-        if (s_force_deep_sleep) {
+        if (s_force_deep_sleep && s_sleep_block_count == 0U) {
             power_sleep_enter_deep_sleep();
-        } else if (s_force_sleep || idle_time >= SLEEP_TIMEOUT_SECONDS) {
+        } else if ((s_force_sleep || idle_time >= SLEEP_TIMEOUT_SECONDS) && s_sleep_block_count == 0U) {
             power_sleep_enter_light_sleep();
         }
     }

@@ -38,6 +38,9 @@ bool lvgl_should_block_novel_click(void);
 
 extern TaskHandle_t g_lvgl_task_handle;
 extern TaskHandle_t g_sntp_time_task_handle;
+
+/* OTA 下载成功标志：置位后 Jump 跳转按钮在所有入口均显示（防止切屏重进 setup 被重新隐藏）*/
+extern bool g_ota_jump_ready;
 extern TaskHandle_t g_sntp_interval_task_handle;
 
 typedef enum {

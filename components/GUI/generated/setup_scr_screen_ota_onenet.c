@@ -8,6 +8,9 @@
 #include "gui_guider.h"
 #include "events_init.h"
 
+/* OTA 下载成功标志（定义于 main/lvgl_display.c）*/
+extern bool g_ota_jump_ready;
+
 void setup_scr_screen_ota_onenet(lv_ui *ui)
 {
     // 创建界面
@@ -34,7 +37,14 @@ void setup_scr_screen_ota_onenet(lv_ui *ui)
     lv_obj_align(label_ver_title, LV_ALIGN_TOP_LEFT, 15, 50);
 
     ui->screen_ota_onenet_label_version = lv_label_create(ui->screen_ota_onenet);
-    lv_label_set_text(ui->screen_ota_onenet_label_version, "V1.0.0");
+    /* 显示真实版本号：从运行分区 app_desc 读取，避免硬编码 */
+    {
+        extern const char* get_app_verion(void);
+        const char* ver = get_app_verion();
+        char ver_buf[32];
+        snprintf(ver_buf, sizeof(ver_buf), "V%s", (ver && ver[0]) ? ver : "1.0.0");
+        lv_label_set_text(ui->screen_ota_onenet_label_version, ver_buf);
+    }
     lv_obj_set_style_text_color(ui->screen_ota_onenet_label_version, lv_color_hex(0x00ff00), 0);
     lv_obj_set_style_text_font(ui->screen_ota_onenet_label_version, &songti_font_16, 0);
     lv_obj_align(ui->screen_ota_onenet_label_version, LV_ALIGN_TOP_LEFT, 95, 50);
@@ -73,7 +83,10 @@ void setup_scr_screen_ota_onenet(lv_ui *ui)
     lv_obj_set_style_bg_color(ui->screen_ota_onenet_btn_jump, lv_color_hex(0x4CAF50), 0);
     lv_obj_set_style_bg_color(ui->screen_ota_onenet_btn_jump, lv_color_hex(0x388E3C), LV_STATE_PRESSED);
     lv_obj_set_style_radius(ui->screen_ota_onenet_btn_jump, 5, 0);
-    lv_obj_add_flag(ui->screen_ota_onenet_btn_jump, LV_OBJ_FLAG_HIDDEN);  // 默认隐藏
+    /* 默认隐藏；若 OTA 已下载成功（g_ota_jump_ready），则直接显示 */
+    if (!g_ota_jump_ready) {
+        lv_obj_add_flag(ui->screen_ota_onenet_btn_jump, LV_OBJ_FLAG_HIDDEN);  // 默认隐藏
+    }
 
     lv_obj_t *jump_lbl = lv_label_create(ui->screen_ota_onenet_btn_jump);
     lv_label_set_text(jump_lbl, "跳转到新固件");

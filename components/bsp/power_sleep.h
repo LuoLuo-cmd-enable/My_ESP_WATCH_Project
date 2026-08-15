@@ -20,4 +20,11 @@ void power_sleep_request_deep_sleep(void);
 bool power_sleep_wake_key_guard_active(void);
 void power_sleep_clear_wake_key_guard(void);
 
+/**
+ * @brief 阻止自动睡眠（计数式，可嵌套调用）
+ * @note OTA 等长任务开始前调用，结束后调用 power_sleep_unblock()
+ */
+void power_sleep_block(void);
+void power_sleep_unblock(void);
+
 #endif

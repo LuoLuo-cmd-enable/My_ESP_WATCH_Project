@@ -12,6 +12,8 @@
 #include "esp_crt_bundle.h"
 #include "st7789_driver.h"
 #include "wifi_manager.h"
+#include "power_sleep.h"
+#include "nvs_flash.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "lvgl_display.h"
@@ -38,6 +40,8 @@
 
 #define     MAX_DATA_BUFF   1024
 //ota基础url
+//注意：保持 http，OneNET 下载接口会 301 重定向到 https；
+//直接 https 直连 download 接口会返回 406 Not Acceptable（平台网关限制）
 #define     ONENET_OTA_URL  "http://iot-api.heclouds.com/fuse-ota"
 //token合法时间戳
 #define     TOKEN_TIMESTAMP     1924833600
@@ -263,7 +267,10 @@ esp_err_t onenet_ota_download(int tid)
     esp_http_client_config_t config =
     {
         .url = url,
+        /* download 接口 http 请求会被 301 重定向到 https，必须带证书校验 */
         .crt_bundle_attach = esp_crt_bundle_attach,
+        /* 唯一保留的加速改动：缓冲 1KB→4KB，减少 flash 写入次数（同时给 TLS 留足内存） */
+        .buffer_size = 4 * 1024,
     };
 
     esp_https_ota_config_t ota_config = {
@@ -287,6 +294,8 @@ esp_err_t onenet_ota_download(int tid)
 static void onenet_ota_task(void *param)
 {
     esp_err_t ret;
+    //OTA 进行中：阻止自动睡眠，防止下载途中进入深睡中断升级
+    power_sleep_block();
     //上报当前版本号
     ret = onenet_ota_upload_version();
     if(ret != ESP_OK)
@@ -327,6 +336,7 @@ static void onenet_ota_task(void *param)
     goto delete_ota_task;
 delete_ota_task:
     ota_is_running = false;
+    power_sleep_unblock();   //OTA 结束，恢复自动睡眠
     vTaskDelete(NULL);
 }
 
@@ -369,6 +379,14 @@ void onenet_ota_jump_and_restart(void)
     {
         ESP_LOGE(TAG, "Failed to set boot partition: %s", esp_err_to_name(err));
         return;
+    }
+
+    /* 写 NVS 标志：重启后自动开 WiFi，上报新版本号让平台任务标记完成 */
+    nvs_handle_t h;
+    if (nvs_open("ota", NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_u8(h, "pending_report", 1);
+        nvs_commit(h);
+        nvs_close(h);
     }
 
     ESP_LOGI(TAG, "===== Cleaning up peripherals before jump =====");

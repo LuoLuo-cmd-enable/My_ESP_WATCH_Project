@@ -65,11 +65,37 @@ void wifi_state_handler(WIFI_STATE state)
     }
 }
 
+/**
+ * @brief OTA 跳转后处理：检测 NVS 待上报标志，有则自动开 WiFi
+ * @note 新固件上报版本号后，平台 OTA 任务才显示完成；标志用完即删
+ */
+static void ota_pending_report_handle(void)
+{
+    nvs_handle_t ota_nvs;
+    uint8_t ota_pending_report = 0;
+    if (nvs_open("ota", NVS_READONLY, &ota_nvs) == ESP_OK) {
+        nvs_get_u8(ota_nvs, "pending_report", &ota_pending_report);
+        nvs_close(ota_nvs);
+    }
+    if (ota_pending_report) {
+        ESP_LOGI(TAG, "[Boot] OTA pending report -> auto start WiFi");
+        if (nvs_open("ota", NVS_READWRITE, &ota_nvs) == ESP_OK) {
+            nvs_erase_key(ota_nvs, "pending_report");
+            nvs_commit(ota_nvs);
+            nvs_close(ota_nvs);
+        }
+        wifi_manager_start();
+    } else {
+        wifi_manager_stop(); /* default OFF; enable via quick panel */
+    }
+}
+
 #define LVGL_MSG_QUEUE_LEN  20   // Message queue capacity: 20 entries
 
 QueueHandle_t lvgl_msg_queue = NULL;
 EventGroupHandle_t event_group = NULL;
 EventGroupHandle_t lvgl_runtime_event_group = NULL;
+bool g_ota_jump_ready = false;   // OTA 下载成功标志（Jump 按钮显示）
 TaskHandle_t g_lvgl_task_handle = NULL;
 TaskHandle_t g_sntp_time_task_handle = NULL;
 TaskHandle_t g_sntp_interval_task_handle = NULL;
@@ -256,7 +282,7 @@ void app_main(void)
     print_memory_info("[Boot] After LVGL task created");
     system_diag_snapshot("lvgl-task-started");
     wifi_manager_init(wifi_state_handler);
-    wifi_manager_stop(); /* default OFF; enable via quick panel */
+    ota_pending_report_handle();   /* OTA 跳转后自动开 WiFi 上报新版本 */
     weather_service_init();
     vTaskDelay(pdMS_TO_TICKS(200));
     print_memory_info("[Boot] After WiFi+Weather init");
@@ -468,27 +494,6 @@ static void key_nav_confirm_selected(void)
 }
 
 
-
-
-/* Callback for local OTA firmware update confirmation dialog */
-static void local_ota_msgbox_event_cb(lv_event_t *e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if (code != LV_EVENT_VALUE_CHANGED) return;
-
-    lv_obj_t *msgbox = lv_event_get_current_target(e);
-    const char *btn_text = lv_msgbox_get_active_btn_text(msgbox);
-    if (btn_text == NULL) return;
-
-    if (strcmp(btn_text, "__?") == 0) {
-        lv_msgbox_close(msgbox);
-        local_ota_switch_partition();
-    } else {
-        // "Cancel" or any other button: just close the dialog
-        lv_msgbox_close(msgbox);
-    }
-}
-
 static void novel_list_item_event_cb(lv_event_t *e)
 {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
@@ -688,13 +693,19 @@ static void lvgl_process_msg_queue(void)
                 break;
 
             case LVGL_MSG_OTA_STATUS:
+                ESP_LOGI(TAG, "[OTA] status msg received: %s", msg.str_data);
+                /* 下载成功：置位全局标志（无论当前屏幕是否可见，保证 Jump 按钮最终显示）*/
+                if (strstr(msg.str_data, "下载成功") != NULL) {
+                    g_ota_jump_ready = true;
+                }
+                /* OneNET OTA 状态：只要屏幕对象存在就更新（屏幕隐藏也生效，切回即见）*/
                 if (guider_ui.screen_ota_onenet != NULL &&
-                    !lv_obj_has_flag(guider_ui.screen_ota_onenet, LV_OBJ_FLAG_HIDDEN) &&
                     guider_ui.screen_ota_onenet_label_status != NULL) {
                     lv_label_set_text(guider_ui.screen_ota_onenet_label_status, msg.str_data);
                     /* 下载成功：显示 Jump 跳转按钮 */
-                    if (strstr(msg.str_data, "下载成功") != NULL &&
+                    if (g_ota_jump_ready &&
                         guider_ui.screen_ota_onenet_btn_jump != NULL) {
+                        ESP_LOGI(TAG, "[OTA] show jump button");
                         lv_obj_clear_flag(guider_ui.screen_ota_onenet_btn_jump, LV_OBJ_FLAG_HIDDEN);
                     }
                 } else if (guider_ui.screen_ota_local != NULL &&
