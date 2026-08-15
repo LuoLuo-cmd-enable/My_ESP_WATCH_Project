@@ -125,55 +125,55 @@ void Key_Tick(void)
     static bool key3_long_press_triggered = false;
 
     count++;
-    if (count < KEY_TICK_MAX) {
+    if (count < KEY_TICK_MAX) 
         return;
-    } else {
+    else 
         count = 0;
 
-        prev_state = curr_state;
-        curr_state = Key_GetState();
+    prev_state = curr_state;
+    curr_state = Key_GetState();
 
-        if (power_sleep_wake_key_guard_active()) {
-            if (curr_state == 3) {
-                key3_hold_count = 0;
-                key3_long_press_triggered = false;
-                return;
-            }
-
-            if (prev_state == 3) {
-                power_sleep_clear_wake_key_guard();
-                power_sleep_reset_timer();
-            } else {
-                power_sleep_clear_wake_key_guard();
-            }
+    if (power_sleep_wake_key_guard_active()) {
+        if (curr_state == 3) {
             key3_hold_count = 0;
             key3_long_press_triggered = false;
             return;
         }
 
-        if (curr_state == 3) {
-            if (key3_hold_count < KEY3_LONG_PRESS_COUNT) {
-                key3_hold_count++;
-            }
-            if (!key3_long_press_triggered && key3_hold_count >= KEY3_LONG_PRESS_COUNT) {
-                key3_long_press_triggered = true;
-                power_sleep_request_deep_sleep();
-            }
+        if (prev_state == 3) {
+            power_sleep_clear_wake_key_guard();
+            power_sleep_reset_timer();
         } else {
-            key3_hold_count = 0;
+            power_sleep_clear_wake_key_guard();
         }
+        key3_hold_count = 0;
+        key3_long_press_triggered = false;
+        return;
+    }
 
-        if (curr_state == 0 && prev_state != 0) {
-            if (prev_state == 3 && key3_long_press_triggered) {
-                key3_long_press_triggered = false;
-                power_sleep_reset_timer();
-                return;
-            }
+    if (curr_state == 3) {
+        if (key3_hold_count < KEY3_LONG_PRESS_COUNT) {
+            key3_hold_count++;
+        }
+        if (!key3_long_press_triggered && key3_hold_count >= KEY3_LONG_PRESS_COUNT) {
+            key3_long_press_triggered = true;
+            power_sleep_request_deep_sleep();
+        }
+    } else {
+        key3_hold_count = 0;
+    }
 
-            Key_Num = prev_state;
+    if (curr_state == 0 && prev_state != 0) {
+        if (prev_state == 3 && key3_long_press_triggered) {
             key3_long_press_triggered = false;
             power_sleep_reset_timer();
+            return;
         }
+
+        Key_Num = prev_state;
+        key3_long_press_triggered = false;
+        power_sleep_reset_timer();
     }
+    
 
 }
