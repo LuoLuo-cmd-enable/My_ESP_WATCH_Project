@@ -12,18 +12,14 @@
 #define LCD_WIDTH       240
 #define LCD_HEIGHT      284
 
-#define DEFAULT_WIFI_SSID           "wzdwifi"
-#define DEFAULT_WIFI_PASSWORD       "17733196157"
+#define DEFAULT_WIFI_SSID           "iqoo24g"
+#define DEFAULT_WIFI_PASSWORD       "12345678"
 
-extern EventGroupHandle_t event_group;
 extern EventGroupHandle_t lvgl_runtime_event_group;
 
 #define LVGL_RT_BIT_TASK_READY   BIT0
-#define LVGL_RT_BIT_PAUSED_ACK   BIT1
+#define LVGL_RT_BIT_PAUSED_ACK   BIT1  //设置事件用于LVGL与睡眠任务之间协同
 #define LVGL_RT_BIT_IN_HANDLER   BIT2
-
-#define WIFI_CONNECTED_BIT   (1 << 0)
-#define NOVEL_DISPLAY_BIT    (1 << 1)
 
 void lvgl_diaplay_task(void *param);
 void print_memory_info(const char *label);

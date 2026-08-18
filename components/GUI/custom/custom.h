@@ -25,6 +25,11 @@ lv_obj_t *ui_gradient_btn_create(lv_obj_t *parent, const void *icon_src,
 /* 取渐变按钮上的文本（点击事件取文件名用） */
 const char *ui_gradient_btn_get_text(lv_obj_t *btn);
 
+/* 电池状态应用层：时钟屏/滑动菜单屏挂载电池图标，30s 定时刷新 */
+void battery_status_init(void);
+void battery_status_attach_clock(void);
+void battery_status_attach_menu(void);
+
 
 #ifdef __cplusplus
 }

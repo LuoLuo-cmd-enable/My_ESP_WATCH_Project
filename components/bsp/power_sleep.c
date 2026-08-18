@@ -12,6 +12,7 @@
 #include "esp_sleep.h"
 
 #include "SD_card.h"
+#include "audio_amp.h"
 #include "cst816t_driver.h"
 #include "lvgl_display.h"
 #include "peripheral_sleep.h"
@@ -42,6 +43,10 @@
 #define GPIO_SD_MISO    GPIO_NUM_41
 #define GPIO_SD_CS      GPIO_NUM_42
 #define GPIO_LCD_BL     GPIO_NUM_45
+/* MAX98357A I2S 功放 */
+#define GPIO_AMP_BCLK   GPIO_NUM_47   
+#define GPIO_AMP_WS     GPIO_NUM_48
+#define GPIO_AMP_DIN    GPIO_NUM_21
 
 static const gpio_num_t s_used_gpio_whitelist[] = {
     GPIO_NUM_5, GPIO_NUM_6, GPIO_NUM_7,
@@ -49,6 +54,7 @@ static const gpio_num_t s_used_gpio_whitelist[] = {
     GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18,
     GPIO_NUM_39, GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42,
     GPIO_NUM_45,
+    GPIO_NUM_21, GPIO_NUM_47, GPIO_NUM_48,   /* 音频功放 I2S */
 };
 
 static const gpio_num_t s_protected_gpio_list[] = {
@@ -417,6 +423,7 @@ static void power_sleep_enter_light_sleep(void)
 
     st7789_lcd_backlight(0);
     st7789_driver_deinit(true);
+    audio_amp_deinit();   /* 关闭 I2S 功放，避免睡眠耗电/噪音 */
 
     s_wifi_resume_after_light_sleep = wifi_manager_is_enabled();
     wifi_manager_stop();
@@ -463,6 +470,7 @@ static void power_sleep_enter_deep_sleep(void)
 
     st7789_lcd_backlight(0);
     st7789_driver_deinit(true);
+    audio_amp_deinit();   /* 关闭 I2S 功放 */
 
     wifi_manager_stop();
     peripheral_prepare_deep_sleep();

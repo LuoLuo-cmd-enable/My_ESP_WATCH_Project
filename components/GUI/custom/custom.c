@@ -4,6 +4,7 @@
 #include "custom.h"
 #include "lvgl.h"
 #include "ui_transition.h"
+#include "battery_widget.h"
 
 extern lv_ui guider_ui;
 
@@ -186,6 +187,9 @@ void create_swipeable_menu(lv_ui *ui)
     lv_obj_update_layout(cont);
     lv_event_send(cont, LV_EVENT_SCROLL, NULL);
     lv_obj_scroll_to_view(lv_obj_get_child(cont, 0), LV_ANIM_OFF);
+
+    /* 滑动菜单创建完成后挂载电池图标 */
+    battery_status_attach_menu();
 }
 
 /* ==================================================================
@@ -236,11 +240,11 @@ lv_obj_t *ui_gradient_btn_create(lv_obj_t *parent, const void *icon_src,
         lv_img_set_zoom(img, 65);   /* 80px → 32px */
     }
 
-    /* 文本：过长省略号（循环滚动会持续触发重绘，静止时也耗 CPU，卡顿源之一） */
+    /* 文本：过长循环滚动（LV_LABEL_LONG_SCROLL_CIRCULAR 末尾自动无缝循环） */
     lv_obj_t *name = lv_label_create(card);
     lv_label_set_text(name, text != NULL ? text : "");
     lv_obj_set_width(name, 170);
-    lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
+    lv_label_set_long_mode(name, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_style_text_color(name, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_font(name, &songti_font_16, 0);
     lv_obj_set_style_text_align(name, LV_TEXT_ALIGN_CENTER, 0);
@@ -259,4 +263,79 @@ const char *ui_gradient_btn_get_text(lv_obj_t *btn)
         }
     }
     return NULL;
+}
+
+/* ==================================================================
+ * 电池状态应用层：数据 battery_management（bsp） + UI battery_widget
+ * 挂载位置：时钟屏右上角、滑动菜单屏左上角，LVGL 定时器刷新
+ * ================================================================== */
+static battery_widget_t *s_clock_batt = NULL;
+static battery_widget_t *s_menu_batt = NULL;
+
+/* 组件随屏幕销毁时：LVGL 删除对象 → 自动清指针，防止悬空访问崩溃 */
+static void battery_widget_delete_cb(lv_event_t *e)
+{
+    lv_obj_t *obj = lv_event_get_target(e);
+    if (s_clock_batt != NULL && s_clock_batt->cont == obj) {
+        lv_mem_free(s_clock_batt);
+        s_clock_batt = NULL;
+    } else if (s_menu_batt != NULL && s_menu_batt->cont == obj) {
+        lv_mem_free(s_menu_batt);
+        s_menu_batt = NULL;
+    }
+}
+
+/* 挂载并注册删除回调 */
+static battery_widget_t *battery_status_attach(lv_obj_t *parent, int x, int y,
+                                               battery_widget_t **slot)
+{
+    if (parent == NULL || !lv_obj_is_valid(parent) || slot == NULL) {
+        return NULL;
+    }
+    battery_widget_t *w = battery_widget_create(parent, x, y);
+    if (w != NULL) {
+        *slot = w;
+        lv_obj_add_event_cb(w->cont, battery_widget_delete_cb, LV_EVENT_DELETE, NULL);
+    }
+    return w;
+}
+
+/* 定时刷新：每 30 秒从数据层读一次电量（EMA 平滑，不会抖） */
+static void battery_status_timer_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    if (s_clock_batt != NULL) {
+        battery_widget_refresh(s_clock_batt);
+    }
+    if (s_menu_batt != NULL) {
+        battery_widget_refresh(s_menu_batt);
+    }
+}
+
+/**
+ * @brief 时钟屏挂载电池组件（setup_scr_clock_screen 创建后调用一次）
+ * 位置：屏幕水平居中，时间(50~170)/日期(115)下方 y=185
+ */
+void battery_status_attach_clock(void)
+{
+    s_clock_batt = NULL;   /* 旧组件已随屏幕销毁，删除回调会清指针，这里只需置空 */
+    battery_status_attach(guider_ui.clock_screen, (240 - BATTERY_W) / 2, 8, &s_clock_batt);
+}
+
+/**
+ * @brief 滑动菜单屏挂载电池组件（create_swipeable_menu 创建后调用一次）
+ */
+void battery_status_attach_menu(void)
+{
+    s_menu_batt = NULL;
+    battery_status_attach(guider_ui.menu_screen, 10, 8, &s_menu_batt); /* 左上角 */
+}
+
+/**
+ * @brief 初始化电池状态（setup_ui 后调用一次），启动 30s 刷新定时器
+ */
+void battery_status_init(void)
+{
+    battery_status_attach_clock();
+    lv_timer_create(battery_status_timer_cb, 30000, NULL);
 }

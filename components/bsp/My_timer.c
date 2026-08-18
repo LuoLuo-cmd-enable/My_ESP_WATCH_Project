@@ -164,7 +164,9 @@ void Key_Tick(void)
     }
 
     if (curr_state == 0 && prev_state != 0) {
+        //如果在触发深睡后key3刚好抬起，此次松开不作为触发信号，注意是高电平触发按键所以这里对应的其实是下降沿
         if (prev_state == 3 && key3_long_press_triggered) {
+            //清除标志位防止之后key3短按时不触发Key_Num = prev_state
             key3_long_press_triggered = false;
             power_sleep_reset_timer();
             return;

@@ -22,6 +22,7 @@
 #include "lvgl_display.h"
 #include "My_timer.h"
 #include "img_display.h"
+#include "battery_management.h"
 #include "power_sleep.h"
 #include "local_ota.h"
 #include "novel_progress.h"
@@ -93,7 +94,6 @@ static void ota_pending_report_handle(void)
 #define LVGL_MSG_QUEUE_LEN  20   // Message queue capacity: 20 entries
 
 QueueHandle_t lvgl_msg_queue = NULL;
-EventGroupHandle_t event_group = NULL;
 EventGroupHandle_t lvgl_runtime_event_group = NULL;
 bool g_ota_jump_ready = false;   // OTA 下载成功标志（Jump 按钮显示）
 TaskHandle_t g_lvgl_task_handle = NULL;
@@ -236,11 +236,6 @@ void app_main(void)
 {
     power_sleep_boot_init();
 
-    event_group = xEventGroupCreate();
-    if (event_group == NULL) {
-        ESP_LOGE(TAG, "event_group create failed");
-    }
-
     lvgl_runtime_event_group = xEventGroupCreate();
     if (lvgl_runtime_event_group == NULL) {
         ESP_LOGE(TAG, "lvgl_runtime_event_group create failed");
@@ -254,6 +249,7 @@ void app_main(void)
     Key_Init();
     my_timer_init();
     storage_worker_init();
+    battery_init();
     power_sleep_init();
 
     print_memory_info("[Boot] After SD+Timer+Key init");
@@ -308,22 +304,25 @@ void app_main(void)
 
 static lv_obj_t *s_key_nav_selected = NULL;
 static lv_obj_t *s_key_nav_list = NULL;
-static lv_style_t s_key_nav_selected_style;
-static bool s_key_nav_style_inited = false;
 
 static bool key_nav_item_is_valid(lv_obj_t *obj)
 {
     return (obj != NULL && lv_obj_is_valid(obj));
 }
 
-static void key_nav_style_init_once(void)
+/* 选中样式：白色边框高亮
+ * 用本地样式(lv_obj_set_style_*)而非 add_style：
+ * 渐变按钮的背景是本地样式，优先级高于普通样式，add_style 永远盖不住；
+ * 边框不影响背景，对渐变按钮和 lv_list 按钮都清晰可见 */
+static void key_nav_apply_selected_style(lv_obj_t *obj, bool selected)
 {
-    if (s_key_nav_style_inited) return;
-    lv_style_init(&s_key_nav_selected_style);
-    lv_style_set_bg_opa(&s_key_nav_selected_style, LV_OPA_COVER);
-    lv_style_set_bg_color(&s_key_nav_selected_style, lv_color_hex(0xDCEFFF));
-    lv_style_set_text_color(&s_key_nav_selected_style, lv_color_hex(0x0B3A66));
-    s_key_nav_style_inited = true;
+    if (!key_nav_item_is_valid(obj)) return;
+    lv_obj_set_style_border_width(obj, selected ? 2 : 0, 0);
+    if (selected) {
+        lv_obj_set_style_border_color(obj, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_style_border_opa(obj, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_FULL, 0);
+    }
 }
 
 static void key_nav_set_selected(lv_obj_t *item, bool ensure_visible)
@@ -335,18 +334,12 @@ static void key_nav_set_selected(lv_obj_t *item, bool ensure_visible)
         return;
     }
 
-    if(key_nav_item_is_valid(s_key_nav_selected)){
-        lv_obj_remove_style(s_key_nav_selected, &s_key_nav_selected_style, LV_PART_MAIN | LV_STATE_DEFAULT);
-    }
-
+    key_nav_apply_selected_style(s_key_nav_selected, false);
     s_key_nav_selected = item;
+    key_nav_apply_selected_style(s_key_nav_selected, true);
 
-    if(key_nav_item_is_valid(s_key_nav_selected)){
-        key_nav_style_init_once();
-        lv_obj_add_style(s_key_nav_selected, &s_key_nav_selected_style, LV_PART_MAIN | LV_STATE_DEFAULT);
-        if (ensure_visible) {
-            lv_obj_scroll_to_view(s_key_nav_selected, LV_ANIM_OFF);
-        }
+    if (ensure_visible && key_nav_item_is_valid(item)) {
+        lv_obj_scroll_to_view(s_key_nav_selected, LV_ANIM_OFF);
     }
 }
 
@@ -873,6 +866,7 @@ void lvgl_diaplay_task(void *param)
     lv_img_cache_set_size(8);
 
     setup_ui(&guider_ui);
+    battery_status_init();   /* 时钟屏电池图标 + 30s 刷新定时器 */
 
     lv_timer_create(update_time_timer_cb, 500, NULL);
     if (lvgl_runtime_event_group != NULL) {

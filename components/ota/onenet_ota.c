@@ -40,8 +40,6 @@
 
 #define     MAX_DATA_BUFF   1024
 //ota基础url
-//注意：保持 http，OneNET 下载接口会 301 重定向到 https；
-//直接 https 直连 download 接口会返回 406 Not Acceptable（平台网关限制）
 #define     ONENET_OTA_URL  "http://iot-api.heclouds.com/fuse-ota"
 //token合法时间戳
 #define     TOKEN_TIMESTAMP     1924833600
