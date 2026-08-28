@@ -13,7 +13,6 @@ idf_component_register(
         esp_https_ota
         mqtt
         json
-        freertos
         nvs_flash
         app_update
         bsp

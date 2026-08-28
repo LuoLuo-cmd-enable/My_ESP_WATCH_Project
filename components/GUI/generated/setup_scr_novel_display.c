@@ -14,6 +14,7 @@
 #include "widgets_init.h"
 #include "custom.h"
 #include "lvgl_display.h"
+#include "font_sd.h"
 
 void setup_scr_novel_display(lv_ui *ui)
 {
@@ -39,7 +40,7 @@ void setup_scr_novel_display(lv_ui *ui)
     lv_obj_set_style_border_width(ui->novel_display_label_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui->novel_display_label_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_color(ui->novel_display_label_1, lv_color_hex(0xffffff), LV_PART_MAIN|LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui->novel_display_label_1, &songti_font_16, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->novel_display_label_1, font_sd_get(), LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui->novel_display_label_1, 255, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_letter_space(ui->novel_display_label_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
     lv_obj_set_style_text_line_space(ui->novel_display_label_1, 0, LV_PART_MAIN|LV_STATE_DEFAULT);
@@ -66,7 +67,7 @@ void setup_scr_novel_display(lv_ui *ui)
     lv_span_set_text(ui->novel_display_spangroup_1_span, ":");
     lv_style_set_text_color(&ui->novel_display_spangroup_1_span->style, lv_color_hex(0xfdfdfd));
     lv_style_set_text_decor(&ui->novel_display_spangroup_1_span->style, LV_TEXT_DECOR_NONE);
-    lv_style_set_text_font(&ui->novel_display_spangroup_1_span->style, &songti_font_16);
+    lv_style_set_text_font(&ui->novel_display_spangroup_1_span->style, font_sd_get());
     ui->novel_display_spangroup_1_span = lv_spangroup_new_span(ui->novel_display_spangroup_1);
     lv_span_set_text(ui->novel_display_spangroup_1_span, "45");
     lv_style_set_text_color(&ui->novel_display_spangroup_1_span->style, lv_color_hex(0xffffff));

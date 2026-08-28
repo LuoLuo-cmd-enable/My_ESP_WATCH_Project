@@ -164,7 +164,7 @@ void sntp_interval_task(void *param)
                 ESP_LOGI(TAG, "NTP sync success");
                 char status[32];
                 snprintf(status, sizeof(status), "OK %02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
-                ntp_quick_status(status, 0x33CC66);
+                ntp_quick_status(status, 0x33CC66); //绿色
             } else {
                 ESP_LOGW(TAG, "WiFi not connected, skip this sync");
                 ntp_quick_status("No WiFi", 0x9A9A9A);

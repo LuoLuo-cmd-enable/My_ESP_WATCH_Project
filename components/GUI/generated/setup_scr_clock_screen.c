@@ -55,7 +55,7 @@ void setup_scr_clock_screen(lv_ui *ui)
     lv_label_set_text(ui->clock_screen_label_time, "14:20");
     lv_obj_set_pos(ui->clock_screen_label_time, 0, 50);
     lv_obj_set_size(ui->clock_screen_label_time, 240, 120);
-    lv_obj_set_style_text_font(ui->clock_screen_label_time, &zhao_hua, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->clock_screen_label_time, &shi_zhon_65, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_color(ui->clock_screen_label_time, lv_color_hex(0xF5F0E1), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui->clock_screen_label_time, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_label_set_long_mode(ui->clock_screen_label_time, LV_LABEL_LONG_CLIP);  // 文字超出时裁剪，不滚动
@@ -65,7 +65,7 @@ void setup_scr_clock_screen(lv_ui *ui)
     lv_label_set_text(ui->clock_screen_label_date, "2026.1.1");
     lv_obj_set_pos(ui->clock_screen_label_date, 0, 115);
     lv_obj_set_size(ui->clock_screen_label_date, 240, 25);
-    lv_obj_set_style_text_font(ui->clock_screen_label_date, &zhao_hua_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui->clock_screen_label_date, &shi_zhon_25, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_color(ui->clock_screen_label_date, lv_color_hex(0xF5F0E1), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui->clock_screen_label_date, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_label_set_long_mode(ui->clock_screen_label_date, LV_LABEL_LONG_CLIP);  // 文字超出时裁剪，不滚动

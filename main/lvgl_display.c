@@ -30,7 +30,11 @@
 #include "storage_worker.h"
 #include "get_weather.h"
 #include "custom.h"
+#include "music_player.h"
 #include "onenet_mqtt.h"
+#include "font_sd.h"
+#include "deepseek_ai.h"
+#include "ai_chat_events.h"
 
 #define TAG     "MAIN"
 
@@ -250,6 +254,7 @@ void app_main(void)
     my_timer_init();
     storage_worker_init();
     battery_init();
+    music_player_init();
     power_sleep_init();
 
     print_memory_info("[Boot] After SD+Timer+Key init");
@@ -280,6 +285,7 @@ void app_main(void)
     wifi_manager_init(wifi_state_handler);
     ota_pending_report_handle();   /* OTA 跳转后自动开 WiFi 上报新版本 */
     weather_service_init();
+    deepseek_ai_init();            /* DeepSeek AI 客户端（任务+信号量） */
     vTaskDelay(pdMS_TO_TICKS(200));
     print_memory_info("[Boot] After WiFi+Weather init");
     system_diag_snapshot("wifi-init(default-off)");
@@ -382,6 +388,11 @@ static size_t key_nav_collect_current_items(lv_obj_t **out, size_t cap, lv_obj_t
         if (list_out != NULL) *list_out = guider_ui.video_list_list;
         for (size_t i = 0; i < _LIST_NUMBER && n < cap; ++i) {
             KEY_NAV_PUSH_ITEM(guider_ui.video_list_list_item[i]);
+        }
+    }else if (scr == guider_ui.screen_music_list && lv_obj_is_valid(guider_ui.screen_music_list)){
+        if (list_out != NULL) *list_out = guider_ui.screen_music_list_list;
+        for (size_t i = 0; i < _LIST_NUMBER && n < cap; ++i) {
+            KEY_NAV_PUSH_ITEM(guider_ui.screen_music_list_list_item[i]);
         }
     }else if (scr == guider_ui.screen_img_list && lv_obj_is_valid(guider_ui.screen_img_list)){
         if (list_out != NULL) *list_out = guider_ui.screen_img_list_list_1;
@@ -556,6 +567,14 @@ static void render_novel_list(void)
     for (size_t i = 0; i < count; ++i) {
         lv_obj_t *btn = ui_gradient_btn_create(guider_ui.novel_list_list_1, NULL,
                                                entries[i].name, (uint32_t)i);
+        /* 小说列表书名使用 SD 卡中文字库（覆盖 0x4E00-0x9FA5） */
+        uint32_t child_cnt = lv_obj_get_child_cnt(btn);
+        for (uint32_t c = 0; c < child_cnt; c++) {
+            lv_obj_t *ch = lv_obj_get_child(btn, c);
+            if (ch != NULL && lv_obj_check_type(ch, &lv_label_class)) {
+                lv_obj_set_style_text_font(ch, font_sd_get(), 0);
+            }
+        }
         guider_ui.novel_list_list_1_item[i] = btn;
         lv_obj_add_event_cb(btn, novel_list_item_event_cb, LV_EVENT_CLICKED, NULL);
     }
@@ -615,6 +634,98 @@ static void update_novel_page_label(const char *text)
     if (!lvgl_thread_guard("update_novel_page_label")) return;
     if (guider_ui.novel_display_label_1 == NULL || !lv_obj_is_valid(guider_ui.novel_display_label_1)) return;
     lv_label_set_text(guider_ui.novel_display_label_1, (text != NULL) ? text : "");
+}
+
+/* ================= 音乐播放 ================= */
+static storage_file_entry_t s_music_entries[_LIST_NUMBER];
+static size_t s_music_count = 0;
+static int s_music_cur_idx = -1;
+
+static void music_list_item_event_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    lv_obj_t *btn = lv_event_get_target(e);
+    const char *name = ui_gradient_btn_get_text(btn);
+    if (name == NULL || name[0] == '\0') return;
+    lvgl_msg_send(LVGL_MSG_MUSIC_OPEN_REQ, 0, name);
+}
+
+static void render_music_list(void)
+{
+    if (!lvgl_thread_guard("render_music_list")) return;
+    if (guider_ui.screen_music_list_list == NULL ||
+        !lv_obj_is_valid(guider_ui.screen_music_list_list)) return;
+
+    s_music_count = storage_get_music_list(s_music_entries, _LIST_NUMBER);
+
+    lv_obj_clean(guider_ui.screen_music_list_list);
+    for (int i = 0; i < _LIST_NUMBER; ++i) {
+        guider_ui.screen_music_list_list_item[i] = NULL;
+    }
+
+    if (s_music_count == 0) {
+        lv_obj_t *tip = lv_label_create(guider_ui.screen_music_list_list);
+        lv_label_set_text(tip, "No music");
+        lv_obj_set_style_text_color(tip, lv_color_hex(0x666666), 0);
+        key_nav_sync_to_current_screen(true);
+        return;
+    }
+
+    for (size_t i = 0; i < s_music_count; ++i) {
+        lv_obj_t *btn = ui_gradient_btn_create(guider_ui.screen_music_list_list, NULL,
+                                               s_music_entries[i].name, (uint32_t)i);
+        guider_ui.screen_music_list_list_item[i] = btn;
+        lv_obj_add_event_cb(btn, music_list_item_event_cb, LV_EVENT_CLICKED, NULL);
+    }
+
+    key_nav_sync_to_current_screen(true);
+}
+
+/* 按当前索引 ± delta 切歌并进入播放屏 */
+static void music_switch_by_delta(int delta)
+{
+    if (s_music_count == 0) return;
+    if (s_music_cur_idx < 0) s_music_cur_idx = 0;
+    s_music_cur_idx = (s_music_cur_idx + delta) % (int)s_music_count;
+    if (s_music_cur_idx < 0) s_music_cur_idx += (int)s_music_count;
+
+    music_player_play(s_music_entries[s_music_cur_idx].full_path);
+
+    /* 已进入播放屏则只刷新信息，否则切入 */
+    if (lv_scr_act() == guider_ui.screen_music_player) {
+        lv_label_set_text(guider_ui.screen_music_player_label_name,
+                          music_player_get_name());
+    } else {
+        ui_load_scr_animation(&guider_ui,
+            &guider_ui.screen_music_player, guider_ui.screen_music_player_del,
+            &guider_ui.screen_music_list_del, setup_scr_screen_music_player,
+            LV_SCR_LOAD_ANIM_NONE, 0, 0, false, true);
+    }
+}
+
+/* 按文件名定位索引并播放 */
+static void music_open_by_name(const char *name)
+{
+    if (name == NULL || name[0] == '\0') return;
+    /* 优先从已缓存列表匹配 */
+    if (s_music_count > 0) {
+        for (size_t i = 0; i < s_music_count; i++) {
+            if (strcmp(s_music_entries[i].name, name) == 0) {
+                s_music_cur_idx = (int)i;
+                music_switch_by_delta(0);
+                return;
+            }
+        }
+    }
+    /* 列表未匹配时直接用 name 拼路径 */
+    char path[512];
+    snprintf(path, sizeof(path), "/sdcard/music/%s", name);
+    ESP_LOGI("MUSIC_UI", "fallback open: %s", path);
+    music_player_play(path);
+    ui_load_scr_animation(&guider_ui,
+        &guider_ui.screen_music_player, guider_ui.screen_music_player_del,
+        &guider_ui.screen_music_list_del, setup_scr_screen_music_player,
+        LV_SCR_LOAD_ANIM_NONE, 0, 0, false, true);
 }
 
 
@@ -683,6 +794,15 @@ static void lvgl_process_msg_queue(void)
 
             case LVGL_MSG_WEATHER_UPDATED:
                 weather_ui_refresh_from_snapshot();
+                break;
+
+            case LVGL_MSG_AI_STATUS:
+                ai_ui_set_status(msg.str_data, (uint32_t)msg.param);
+                break;
+
+            case LVGL_MSG_AI_ANSWER:
+                /* 回答已存入组件静态缓冲，直接读取显示（无跨任务堆指针） */
+                ai_ui_show_answer(deepseek_ai_get_answer());
                 break;
 
             case LVGL_MSG_OTA_STATUS:
@@ -771,8 +891,42 @@ static void lvgl_process_msg_queue(void)
                 render_novel_list();
                 break;
 
+            case LVGL_MSG_SD_FONT_READY:
+                /* SD 字库异步加载完成：刷新已引用该字体的控件 */
+                if (guider_ui.novel_list_list_1 != NULL &&
+                    lv_obj_is_valid(guider_ui.novel_list_list_1)) {
+                    lv_obj_invalidate(guider_ui.novel_list_list_1);
+                }
+                if (guider_ui.novel_display_label_1 != NULL &&
+                    lv_obj_is_valid(guider_ui.novel_display_label_1)) {
+                    lv_obj_invalidate(guider_ui.novel_display_label_1);
+                }
+                break;
+
             case LVGL_MSG_VIDEO_LIST_READY:
                 render_video_list();
+                break;
+
+            case LVGL_MSG_MUSIC_LIST_REFRESH_REQ:
+                storage_request_music_list_refresh();
+                break;
+
+            case LVGL_MSG_MUSIC_LIST_READY:
+                render_music_list();
+                break;
+
+            case LVGL_MSG_MUSIC_OPEN_REQ:
+                if (msg.param == 1) {          /* 上一首 */
+                    music_switch_by_delta(-1);
+                } else if (msg.param == 2) {   /* 下一首 */
+                    music_switch_by_delta(1);
+                } else {                       /* 按文件名 */
+                    music_open_by_name((const char *)msg.data);
+                }
+                break;
+
+            case LVGL_MSG_MUSIC_STOP_REQ:
+                music_player_stop();
                 break;
 
             case LVGL_MSG_NOVEL_PAGE_READY:
@@ -862,6 +1016,8 @@ void lvgl_diaplay_task(void *param)
     lv_port_init();
     st7789_lcd_backlight(1);
     my_fs_init();
+    /* 从 SD 卡加载 Font_20.bin 中文字库（0x4E00-0x9FA5） */
+    font_sd_init();
     /* Cache decoded images to reduce SD decode hitch when switching back to clock screen. */
     lv_img_cache_set_size(8);
 
@@ -1004,14 +1160,16 @@ static bool msg_type_needs_strdup(lvgl_msg_type_t type)
 {
     return (type == LVGL_MSG_NOVEL_OPEN_REQ ||
             type == LVGL_MSG_VIDEO_OPEN_REQ ||
-            type == LVGL_MSG_NOVEL_OPEN);
+            type == LVGL_MSG_NOVEL_OPEN ||
+            type == LVGL_MSG_MUSIC_OPEN_REQ);
 }
 
 static bool msg_type_uses_str_data(lvgl_msg_type_t type)
 {
     return (type == LVGL_MSG_OTA_STATUS ||
             type == LVGL_MSG_NTP_SYNC_STATUS ||
-            type == LVGL_MSG_WEATHER_STATUS);
+            type == LVGL_MSG_WEATHER_STATUS ||
+            type == LVGL_MSG_AI_STATUS);
 }
 
 static inline bool utf8_is_continuation(uint8_t b)

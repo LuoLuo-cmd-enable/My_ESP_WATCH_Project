@@ -19,6 +19,7 @@ void storage_worker_init(void);
 
 bool storage_request_novel_list_refresh(void);
 bool storage_request_video_list_refresh(void);
+bool storage_request_music_list_refresh(void);
 bool storage_request_novel_open_by_name(const char *name);
 bool storage_request_novel_open_by_path(const char *path);
 bool storage_request_novel_close(void);
@@ -30,6 +31,7 @@ bool storage_prepare_for_sleep(uint32_t timeout_ms);
 
 size_t storage_get_novel_list(storage_file_entry_t *out, size_t cap);
 size_t storage_get_video_list(storage_file_entry_t *out, size_t cap);
+size_t storage_get_music_list(storage_file_entry_t *out, size_t cap);
 bool storage_get_last_novel_page(char *text, size_t text_len, long *offset);
 bool storage_get_last_video_open(char *path, size_t path_len, video_format_t *format);
 UBaseType_t storage_worker_stack_hwm(void);

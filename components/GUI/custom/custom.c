@@ -63,13 +63,31 @@ static void custom_btn_game_cb(lv_event_t *e)
                           LV_SCR_LOAD_ANIM_NONE, 0, 0, false, true);
 }
 
+static void custom_btn_music_cb(lv_event_t *e)
+{
+    set_click_center(e);
+    ui_load_scr_with_zoom(&guider_ui, &guider_ui.screen_music_list, guider_ui.screen_music_list_del,
+                          &guider_ui.menu_screen_del, setup_scr_screen_music_list,
+                          LV_SCR_LOAD_ANIM_NONE, 0, 0, false, true);
+}
+
+static void custom_btn_ai_cb(lv_event_t *e)
+{
+    set_click_center(e);
+    ui_load_scr_with_zoom(&guider_ui, &guider_ui.screen_ai_chat, guider_ui.screen_ai_chat_del,
+                          &guider_ui.menu_screen_del, setup_scr_screen_ai_chat,
+                          LV_SCR_LOAD_ANIM_NONE, 0, 0, false, true);
+}
+
 extern const lv_img_dsc_t novel;
 extern const lv_img_dsc_t picture;
 extern const lv_img_dsc_t video;
 extern const lv_img_dsc_t config;
 extern const lv_img_dsc_t game;
+extern const lv_img_dsc_t music;
+extern const lv_img_dsc_t deepseek;
 
-#define MENU_ITEM_COUNT 5
+#define MENU_ITEM_COUNT 7
 static lv_obj_t *s_menu_imgs[MENU_ITEM_COUNT];
 
 static void menu_scroll_event_cb(lv_event_t *e)
@@ -172,8 +190,10 @@ void create_swipeable_menu(lv_ui *ui)
         {&novel, "小说", custom_btn_novel_cb},
         {&picture, "图片", custom_btn_img_cb},
         {&video, "视频", custom_btn_video_cb},
+        {&music, "音乐", custom_btn_music_cb},
         {&config, "设置", custom_btn_setting_cb},
         {&game, "游戏", custom_btn_game_cb},
+        {&deepseek, "AI", custom_btn_ai_cb},
     };
 
     for (size_t i = 0; i < sizeof(items) / sizeof(items[0]); i++) {

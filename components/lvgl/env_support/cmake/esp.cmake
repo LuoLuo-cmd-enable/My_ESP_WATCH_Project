@@ -1,7 +1,4 @@
 file(GLOB_RECURSE SOURCES ${LVGL_ROOT_DIR}/src/*.c)
-if(EXISTS ${LVGL_ROOT_DIR}/src/font/zhao_hua_16.c)
-  list(APPEND SOURCES ${LVGL_ROOT_DIR}/src/font/zhao_hua_16.c)
-endif()
 
 idf_build_get_property(LV_MICROPYTHON LV_MICROPYTHON)
 

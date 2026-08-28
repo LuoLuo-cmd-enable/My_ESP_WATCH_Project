@@ -149,6 +149,37 @@ typedef struct
     lv_obj_t *video_player_btn_close;
     video_format_t video_player_format;
 
+	 // ★★★ 音乐列表界面 ★★★
+    lv_obj_t *screen_music_list;
+    bool screen_music_list_del;
+    lv_obj_t *screen_music_list_list;
+    lv_obj_t *screen_music_list_list_item[_LIST_NUMBER];
+
+	 // ★★★ 音乐播放界面 ★★★
+    lv_obj_t *screen_music_player;
+    bool screen_music_player_del;
+    lv_obj_t *screen_music_player_label_name;      /* 歌名 */
+    lv_obj_t *screen_music_player_cont_wave;       /* 波形容器 */
+    lv_obj_t *screen_music_player_wave_bar[_LIST_NUMBER]; /* 波形柱 */
+    lv_obj_t *screen_music_player_slider;          /* 进度条 */
+    lv_obj_t *screen_music_player_label_time;      /* 时间 mm:ss/mm:ss */
+    lv_obj_t *screen_music_player_btn_prev;        /* 上一首 */
+    lv_obj_t *screen_music_player_btn_pause;       /* 播放/暂停 */
+    lv_obj_t *screen_music_player_btn_pause_lbl;   /* 暂停按钮文字(||/▶) */
+    lv_obj_t *screen_music_player_btn_next;        /* 下一首 */
+    lv_obj_t *screen_music_player_btn_close;       /* 关闭(停止并返回) */
+
+     // ★★★ 新增：DeepSeek AI 聊天界面 ★★★
+    lv_obj_t *screen_ai_chat;
+    bool screen_ai_chat_del;
+    lv_obj_t *screen_ai_chat_label_status;    // 状态标签（Thinking/No WiFi/Done...）
+    lv_obj_t *screen_ai_chat_label_answer;    // 回答滚动标签
+    lv_obj_t *screen_ai_chat_ta_input;        // 问题输入框
+    lv_obj_t *screen_ai_chat_btn_send;        // 发送按钮
+    lv_obj_t *screen_ai_chat_btn_back;        // 返回按钮
+    lv_obj_t *screen_ai_chat_kb;              // 软键盘
+    lv_obj_t *screen_ai_chat_cont_quick;      // 快捷问题容器
+
 }lv_ui;
 
 typedef void (*ui_setup_scr_t)(lv_ui * ui);
@@ -193,6 +224,11 @@ void setup_scr_screen_ota_switch(lv_ui *ui);       // 切换分区
 void setup_scr_video_list(lv_ui *ui);              // 视频列表
 void setup_scr_video_player(lv_ui *ui);            // 视频播放
 
+void setup_scr_screen_music_list(lv_ui *ui);       // 音乐列表
+void setup_scr_screen_music_player(lv_ui *ui);     // 音乐播放
+
+void setup_scr_screen_ai_chat(lv_ui *ui);          // DeepSeek AI 聊天
+
 // 视频播放全局变量（供events_init_video_list.c使用）
 extern char g_video_filepath[512];
 extern video_format_t g_video_format;
@@ -220,11 +256,11 @@ LV_FONT_DECLARE(lv_font_Amiko_Regular_12)
 LV_FONT_DECLARE(lv_font_montserratMedium_20)
 LV_FONT_DECLARE(lv_font_montserratMedium_14)
 LV_FONT_DECLARE(lv_font_montserratMedium_25)
-LV_FONT_DECLARE(songti_font_16)
 LV_FONT_DECLARE(lv_font_montserrat_48)
-LV_FONT_DECLARE(zhao_hua)
+LV_FONT_DECLARE(songti_font_16)
+LV_FONT_DECLARE(shi_zhon_65)
+LV_FONT_DECLARE(shi_zhon_25)
 LV_IMG_DECLARE(IMAGE_1)
-LV_FONT_DECLARE(zhao_hua_16)
 
 
 #ifdef __cplusplus

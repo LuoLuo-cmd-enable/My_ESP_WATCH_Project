@@ -59,6 +59,7 @@ void my_fs_init(void)
     static lv_fs_drv_t fs_drv;
     lv_fs_drv_init(&fs_drv);
     fs_drv.letter   = 'S';
+    fs_drv.cache_size = 4096;   /* 加大读缓存，显著减少 SD 小读次数（字库加载提速） */
     fs_drv.open_cb  = my_fs_open;
     fs_drv.close_cb = my_fs_close;
     fs_drv.read_cb  = my_fs_read;
