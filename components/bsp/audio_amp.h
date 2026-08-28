@@ -36,6 +36,11 @@ esp_err_t audio_amp_init(uint32_t sample_rate);
 esp_err_t audio_amp_play_pcm(const int16_t *data, uint32_t len);
 
 /**
+ * @brief 静音/停止输出（暂停时调用，清空 I2S 缓冲防滋滋声）
+ */
+esp_err_t audio_amp_mute(void);
+
+/**
  * @brief 播放 WAV 文件（自动解析头，支持 8/16/22/44kHz）
  * @param path SD 卡路径，如 "/sdcard/tip.wav"
  * @return esp_err_t

@@ -14,6 +14,7 @@
 #include "widgets_init.h"
 #include "custom.h"
 #include "lvgl_display.h"
+#include "font_sd.h"
 #include <strings.h>
 
 
@@ -41,7 +42,7 @@ void setup_scr_novel_list(lv_ui *ui)
     lv_obj_t *loading = lv_label_create(ui->novel_list_list_1);
     lv_label_set_text(loading, "Loading...");
     lv_obj_set_style_text_color(loading, lv_color_hex(0x666666), 0);
-    lv_obj_set_style_text_font(loading, &songti_font_16, 0);
+    lv_obj_set_style_text_font(loading, font_sd_get(), 0);
 
     lv_obj_set_pos(ui->novel_list_list_1, 0, 0);
     lv_obj_set_size(ui->novel_list_list_1, 240, 284);

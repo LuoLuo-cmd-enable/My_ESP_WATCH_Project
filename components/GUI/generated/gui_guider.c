@@ -32,7 +32,6 @@ void ui_load_scr_animation(lv_ui *ui, lv_obj_t ** new_scr, bool new_scr_del, boo
     static uint32_t s_last_switch_tick = 0;
     uint32_t now_tick = lv_tick_get();
 
-    //????
     if ((now_tick - s_last_switch_tick) < 120U) {
         return;
     }
@@ -110,17 +109,22 @@ void init_scr_del_flag(lv_ui *ui)
     ui->setting_screen_del = true;
     ui->screen_game_del = true;
 
-    ui->screen_img_list_del = true;       // �?新增
-    ui->screen_img_display_del = true;    // �?新增
+    ui->screen_img_list_del = true;      
+    ui->screen_img_display_del = true;   
     ui->screen_wifi_set_del = true;
     ui->screen_time_set_del = true;
 
-    ui->screen_ota_del = true;           // OTA主界�?    ui->screen_ota_onenet_del = true;    // OneNET均级
-    ui->screen_ota_local_del = true;     // 本地均级
-    ui->screen_ota_switch_del = true;    // 切杢分区
+    ui->screen_ota_del = true;          
+    ui->screen_ota_local_del = true;    
+    ui->screen_ota_switch_del = true;   
 
-    ui->video_list_del = true;           // 视频列表
-    ui->video_player_del = true;          // 视频播放
+    ui->video_list_del = true;           
+    ui->video_player_del = true;        
+
+    ui->screen_music_list_del = true;    
+    ui->screen_music_player_del = true;   
+
+    ui->screen_ai_chat_del = true;        
 
 }
 

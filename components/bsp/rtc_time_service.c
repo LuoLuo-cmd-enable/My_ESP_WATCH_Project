@@ -131,7 +131,7 @@ esp_err_t rtc_time_service_init_shared_i2c(void)
     }
 
     service_lock_give();
-
+    
     if (ret != ESP_OK) {
         ESP_LOGW(RTC_SERVICE_TAG, "init failed: %s", esp_err_to_name(ret));
         return ret;
@@ -160,9 +160,9 @@ esp_err_t rtc_time_service_boot_sync_system_from_rtc(void)
     if (!rtc_time_sanity_check(&rtc_time)) {
         sd3078_time_t default_time = {
             .year = 2026,
-            .month = 1,
-            .day = 1,
-            .week = 4,   /* 2026-01-01 is Thursday */
+            .month = 8,
+            .day = 18,
+            .week = 2,
             .hour = 0,
             .minute = 0,
             .second = 0,
@@ -235,8 +235,7 @@ esp_err_t rtc_time_service_prepare_for_sleep(void)
     return ret;
 }
 
-esp_err_t rtc_time_service_set_manual_and_sync(int year, int month, int day,
-                                               int hour, int minute, int second)
+esp_err_t rtc_time_service_set_manual_and_sync(int year, int month, int day, int hour, int minute, int second)
 {
     if (!s_ready) {
         return ESP_ERR_INVALID_STATE;

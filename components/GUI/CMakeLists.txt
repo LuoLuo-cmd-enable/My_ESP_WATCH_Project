@@ -13,6 +13,8 @@ list(FILTER srcs EXCLUDE REGEX ".*[\\\\/]game[\\\\/]snake[\\\\/]LVGL_example\\.c
 list(APPEND srcs
     generated/setup_scr_screen_game.c
     generated/setup_scr_screen_weather.c
+    generated/setup_scr_screen_ai_chat.c
+    custom/ai_chat_events.c
 )
 
 # Flappy Bird game (SquareLine export adapted for LVGL8)
@@ -34,5 +36,5 @@ set(include_dirs
 idf_component_register(
     SRCS ${srcs}
     INCLUDE_DIRS ${include_dirs}
-    REQUIRES lvgl bsp ota My_image
+    REQUIRES lvgl bsp ota My_image deepseek_ai
     )             

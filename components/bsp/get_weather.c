@@ -27,12 +27,12 @@
 #define TAG "weather"
 
 #define HOST "api.seniverse.com"
-#define API_KEY "SxeezOBBh2Yz5B8CE"
-#define LOCATION "jiaozuo"
+#define API_KEY "S_24MTJ4Pkc1X2cMs"
+#define LOCATION "dongguan"
 #define LANGUAGE "zh-Hans"
 #define TEMPERATURE_UNIT "c"
 
-#define RESPONSE_BODY_MAX_SIZE 1024
+#define RESPONSE_BODY_MAX_SIZE 2048
 
 static const char *s_weather_url =
     "http://" HOST "/v3/weather/daily.json?key=" API_KEY "&location=" LOCATION
@@ -160,12 +160,14 @@ static esp_err_t weather_http_get(char *out_buf, size_t out_cap)
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client == NULL) return ESP_FAIL;
 
+    //这里进行DNS解析（这里内部会通过在DHCP响应已经获取的DNS服务器地址进行DNS数据包的请求） → TCP连接 → 发送GET请求报文
     esp_err_t err = esp_http_client_open(client, 0);
     if (err != ESP_OK) {
         esp_http_client_cleanup(client);
         return err;
     }
 
+    //阻塞读取服务器返回的HTTP响应头，解析http头部，保存返回的上下文长度
     int content_length = esp_http_client_fetch_headers(client);
     if (content_length < 0 || (size_t)content_length >= out_cap) {
         esp_http_client_close(client);
@@ -173,6 +175,7 @@ static esp_err_t weather_http_get(char *out_buf, size_t out_cap)
         return ESP_FAIL;
     }
 
+    //将数据保存到out_buf数组里面，数组尽量大一点，防止溢出
     int read_len = esp_http_client_read_response(client, out_buf, (int)out_cap - 1);
     if (read_len < 0) {
         esp_http_client_close(client);
@@ -181,6 +184,7 @@ static esp_err_t weather_http_get(char *out_buf, size_t out_cap)
     }
     out_buf[read_len] = '\0';
 
+    //查看返回的状态码<status>
     int status = esp_http_client_get_status_code(client);
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
@@ -196,7 +200,7 @@ static void weather_task(void *param)
 {
     (void)param;
 
-    char response_body[RESPONSE_BODY_MAX_SIZE];
+    static char response_body[RESPONSE_BODY_MAX_SIZE];
     memset(response_body, 0, sizeof(response_body));
 
     while (1) {

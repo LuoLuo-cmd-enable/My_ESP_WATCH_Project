@@ -90,7 +90,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,int32_t event_i
 void wifi_manager_init(p_wifi_state_callback f)
 {
 
-    ESP_ERROR_CHECK(esp_event_loop_create_default());       //创建一个默认系统事件调度循环，之后可以注册回调函数来处理系统的一些事件
+    ESP_ERROR_CHECK(esp_event_loop_create_default());       
     esp_netif_create_default_wifi_sta();    //使用默认配置创建STA对象
     //初始化WIFI
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();

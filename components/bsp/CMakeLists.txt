@@ -1,8 +1,8 @@
 idf_component_register(
-    SRCS "battery_management.c" "audio_amp.c" "My_timer.c" "ui_mjpeg_player.c" "mjpeg_frame.c" "video_player.c" "power_sleep.c" "peripheral_sleep.c" "img_display.c" "novel_progress.c" "SD_card.c" "st7789_driver.c" "cst816t_driver.c"  "wifi_manager.c" "ntp_time.c" "get_weather.c"
+    SRCS "battery_management.c" "audio_amp.c" "music_player.c" "My_timer.c" "ui_mjpeg_player.c" "mjpeg_frame.c" "video_player.c" "power_sleep.c" "peripheral_sleep.c" "img_display.c" "novel_progress.c" "SD_card.c" "st7789_driver.c" "cst816t_driver.c"  "wifi_manager.c" "ntp_time.c" "get_weather.c" "font_sd.c"
         "i2c_bus_lock.c" "sd3078.c" "rtc_time_service.c"
         "novel_progress.c" "img_display.c"
-    INCLUDE_DIRS    "."  "${CMAKE_SOURCE_DIR}/main"
+    INCLUDE_DIRS    "."  "mp3dec"  "${CMAKE_SOURCE_DIR}/main"
     REQUIRES     esp_lcd  
                  esp_driver_i2s
                  esp_adc

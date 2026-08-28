@@ -5,6 +5,8 @@ idf_component_register(
         "video.c"
         "config.c"
         "game.c"
+        "music.c"
+        "deepseek.c"
     INCLUDE_DIRS
         "."
     REQUIRES lvgl

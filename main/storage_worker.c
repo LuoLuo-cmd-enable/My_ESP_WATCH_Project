@@ -20,11 +20,12 @@
 #define STORAGE_QUEUE_LEN        12
 #define STORAGE_CACHE_MAX        96
 #define STORAGE_PAGE_TEXT_MAX    1200
-#define STORAGE_WORKER_STACK_SIZE 12288
+#define STORAGE_WORKER_STACK_SIZE 8192
 
 typedef enum {
     STORAGE_CMD_SCAN_NOVELS = 0,
     STORAGE_CMD_SCAN_VIDEOS,
+    STORAGE_CMD_SCAN_MUSIC,
     STORAGE_CMD_NOVEL_OPEN_NAME,
     STORAGE_CMD_NOVEL_OPEN_PATH,
     STORAGE_CMD_NOVEL_CLOSE,
@@ -55,6 +56,9 @@ static size_t s_novel_cache_cap = 0;
 static storage_file_entry_t *s_video_cache = NULL;
 static size_t s_video_cache_count = 0;
 static size_t s_video_cache_cap = 0;
+static storage_file_entry_t *s_music_cache = NULL;
+static size_t s_music_cache_count = 0;
+static size_t s_music_cache_cap = 0;
 static storage_file_entry_t *s_scan_tmp = NULL;
 static size_t s_scan_tmp_cap = 0;
 
@@ -157,6 +161,21 @@ static void set_video_cache(const storage_file_entry_t *src, size_t count)
     s_video_cache_count = (count > s_video_cache_cap) ? s_video_cache_cap : count;
     if (src != NULL && s_video_cache_count > 0) {
         memcpy(s_video_cache, src, s_video_cache_count * sizeof(storage_file_entry_t));
+    }
+    unlock_data();
+}
+
+static void set_music_cache(const storage_file_entry_t *src, size_t count)
+{
+    lock_data();
+    if (s_music_cache == NULL || s_music_cache_cap == 0) {
+        s_music_cache_count = 0;
+        unlock_data();
+        return;
+    }
+    s_music_cache_count = (count > s_music_cache_cap) ? s_music_cache_cap : count;
+    if (src != NULL && s_music_cache_count > 0) {
+        memcpy(s_music_cache, src, s_music_cache_count * sizeof(storage_file_entry_t));
     }
     unlock_data();
 }
@@ -388,6 +407,13 @@ static void worker_task(void *param)
                 lvgl_msg_send_nonblocking(LVGL_MSG_VIDEO_LIST_READY, n, NULL);
                 break;
             }
+            case STORAGE_CMD_SCAN_MUSIC: {
+                int n = scan_dir("/sdcard/music", ".wav|.mp3|.mav", s_scan_tmp, s_scan_tmp_cap);
+                if (n < 0) n = 0;
+                set_music_cache(s_scan_tmp, (size_t)n);
+                lvgl_msg_send_nonblocking(LVGL_MSG_MUSIC_LIST_READY, n, NULL);
+                break;
+            }
             case STORAGE_CMD_NOVEL_OPEN_NAME: {
                 char path[STORAGE_WORKER_PATH_MAX] = {0};
                 if (!resolve_from_cache(true, cmd.arg, path, sizeof(path))) {
@@ -457,11 +483,15 @@ void storage_worker_init(void)
     if (s_video_cache == NULL) {
         (void)alloc_entry_block(&s_video_cache, &s_video_cache_cap, "video");
     }
+    if (s_music_cache == NULL) {
+        (void)alloc_entry_block(&s_music_cache, &s_music_cache_cap, "music");
+    }
     if (s_scan_tmp == NULL) {
         (void)alloc_entry_block(&s_scan_tmp, &s_scan_tmp_cap, "scan");
     }
     if (s_cmd_queue == NULL || s_data_mutex == NULL || s_sleep_prep_sem == NULL ||
-        s_novel_cache == NULL || s_video_cache == NULL || s_scan_tmp == NULL) {
+        s_novel_cache == NULL || s_video_cache == NULL || s_music_cache == NULL ||
+        s_scan_tmp == NULL) {
         ESP_LOGE(TAG, "storage worker init incomplete");
         return;
     }
@@ -475,6 +505,7 @@ void storage_worker_init(void)
 
 bool storage_request_novel_list_refresh(void) { return post_cmd(STORAGE_CMD_SCAN_NOVELS, NULL, 0); }
 bool storage_request_video_list_refresh(void) { return post_cmd(STORAGE_CMD_SCAN_VIDEOS, NULL, 0); }
+bool storage_request_music_list_refresh(void) { return post_cmd(STORAGE_CMD_SCAN_MUSIC, NULL, 0); }
 bool storage_request_novel_open_by_name(const char *name) { return post_cmd(STORAGE_CMD_NOVEL_OPEN_NAME, name, pdMS_TO_TICKS(50)); }
 bool storage_request_novel_open_by_path(const char *path) { return post_cmd(STORAGE_CMD_NOVEL_OPEN_PATH, path, pdMS_TO_TICKS(50)); }
 bool storage_request_novel_close(void) { return post_cmd(STORAGE_CMD_NOVEL_CLOSE, NULL, pdMS_TO_TICKS(20)); }
@@ -526,6 +557,21 @@ size_t storage_get_video_list(storage_file_entry_t *out, size_t cap)
     }
     if (n > 0) {
         memcpy(out, s_video_cache, n * sizeof(storage_file_entry_t));
+    }
+    unlock_data();
+    return n;
+}
+
+size_t storage_get_music_list(storage_file_entry_t *out, size_t cap)
+{
+    size_t n = 0;
+    if (out == NULL || cap == 0) return 0;
+    lock_data();
+    if (s_music_cache != NULL) {
+        n = (s_music_cache_count < cap) ? s_music_cache_count : cap;
+    }
+    if (n > 0) {
+        memcpy(out, s_music_cache, n * sizeof(storage_file_entry_t));
     }
     unlock_data();
     return n;

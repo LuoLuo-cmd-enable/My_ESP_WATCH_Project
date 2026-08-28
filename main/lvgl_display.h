@@ -62,6 +62,10 @@ typedef enum {
     LVGL_MSG_WEATHER_STATUS,
     LVGL_MSG_WEATHER_UPDATED,
 
+    /* DeepSeek AI chat (deepseek_ai component -> LVGL). */
+    LVGL_MSG_AI_STATUS,     /* param=颜色, str_data=状态文本 */
+    LVGL_MSG_AI_ANSWER,     /* data=堆分配的回答文本(need_free=true) */
+
     /* Request messages (cross-thread). */
     LVGL_MSG_NOVEL_LIST_REFRESH_REQ,
     LVGL_MSG_VIDEO_LIST_REFRESH_REQ,
@@ -72,10 +76,14 @@ typedef enum {
     LVGL_MSG_NOVEL_PAGE_PREV_REQ,
     LVGL_MSG_VIDEO_OPEN_REQ,
     LVGL_MSG_VIDEO_STOP_REQ,
+    LVGL_MSG_MUSIC_LIST_REFRESH_REQ,
+    LVGL_MSG_MUSIC_OPEN_REQ,
+    LVGL_MSG_MUSIC_STOP_REQ,
 
     /* Result messages (worker -> LVGL). */
     LVGL_MSG_NOVEL_LIST_READY,
     LVGL_MSG_VIDEO_LIST_READY,
+    LVGL_MSG_MUSIC_LIST_READY,
     LVGL_MSG_NOVEL_OPEN_READY,
     LVGL_MSG_NOVEL_OPEN_ERROR,
     LVGL_MSG_NOVEL_PAGE_READY,
@@ -89,6 +97,7 @@ typedef enum {
 
     LVGL_MSG_VIDEO_FRAME,
     LVGL_MSG_RETURN_TO_VIDEO_LIST,
+    LVGL_MSG_SD_FONT_READY,
 } lvgl_msg_type_t;
 
 typedef struct{

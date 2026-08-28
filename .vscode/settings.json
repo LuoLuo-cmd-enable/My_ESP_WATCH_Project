@@ -13,6 +13,6 @@
   "clangd.arguments": [
     "--background-index",
     "--query-driver=**",
-    "--compile-commands-dir=d:\\baidu-download\\ESP32S3_watch_LVGL_WZD-main\\ESP32S3_watch_LVGL_WZD-main\\chu_kong_git\\lvgl_display_test_2\\build"
+    "--compile-commands-dir=d:\\ESP32_project\\my_esp32code\\smart_watch\\build"
   ]
 }
