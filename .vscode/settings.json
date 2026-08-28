@@ -1,7 +1,7 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
-  "idf.flashType": "UART",
-  "idf.portWin": "COM10",
+  "idf.flashType": "JTAG",
+  "idf.portWin": "COM9",
   "idf.currentSetup": "D:\\ESP-IDF-5.4.4\\esp-idf\\v5.4.4\\esp-idf",
   "idf.openOcdConfigs": [
     "board/esp32s3-builtin.cfg"
