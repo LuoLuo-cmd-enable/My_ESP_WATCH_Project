@@ -91,11 +91,9 @@ static void audio_ring_reset(void)
 {
     s_ring_read = 0;
     s_ring_write = 0;
-    while (xSemaphoreTake(s_ring_data, 0) == pdTRUE) {}
-    while (xSemaphoreTake(s_ring_space, 0) == pdTRUE) {}
-    for (int i = 0; i < AUDIO_RING_BLOCK_COUNT; i++) {
-        xSemaphoreGive(s_ring_space);
-    }
+    /* 待写入空位清零 */
+    while (xSemaphoreTake(s_ring_data, 0) == pdTRUE);
+    while (xSemaphoreGive(s_ring_space) == pdTRUE);
 }
 
 esp_err_t audio_amp_init(uint32_t sample_rate)
@@ -252,85 +250,6 @@ esp_err_t audio_amp_play_pcm(const int16_t *data, uint32_t len)
     }
     audio_amp_unlock();
     return ESP_OK;
-}
-
-/* WAV 头（44 字节标准 PCM 头） */
-#pragma pack(push, 1)
-typedef struct {
-    char     riff[4];      /* "RIFF" */
-    uint32_t file_size;
-    char     wave[4];      /* "WAVE" */
-    char     fmt[4];       /* "fmt " */
-    uint32_t fmt_size;     /* 16 */
-    uint16_t audio_fmt;    /* 1 = PCM */
-    uint16_t channels;     /* 1/2 */
-    uint32_t sample_rate;
-    uint32_t byte_rate;
-    uint16_t block_align;
-    uint16_t bits_per_sample;
-    char     data[4];      /* "data" */
-    uint32_t data_size;
-} wav_header_t;
-#pragma pack(pop)
-
-esp_err_t audio_amp_play_wav(const char *path)
-{
-    FILE *fp = fopen(path, "rb");
-    if (fp == NULL) {
-        ESP_LOGE(TAG, "open %s failed", path);
-        return ESP_FAIL;
-    }
-
-    wav_header_t hdr;
-    if (fread(&hdr, 1, sizeof(hdr), fp) != sizeof(hdr)) {
-        ESP_LOGE(TAG, "read wav header failed");
-        fclose(fp);
-        return ESP_FAIL;
-    }
-
-    /* 校验 WAV 头 */
-    if (memcmp(hdr.riff, "RIFF", 4) != 0 || memcmp(hdr.wave, "WAVE", 4) != 0 ||
-        hdr.audio_fmt != 1) {
-        ESP_LOGE(TAG, "not a PCM wav file");
-        fclose(fp);
-        return ESP_FAIL;
-    }
-
-    esp_err_t ret = audio_amp_init(hdr.sample_rate);
-    if (ret != ESP_OK) {
-        fclose(fp);
-        return ret;
-    }
-
-    /* 流式播放 data 段 */
-    uint8_t buf[2048];
-    uint32_t remain = hdr.data_size;
-    while (remain > 0) {
-        uint32_t to_read = (remain > sizeof(buf)) ? sizeof(buf) : remain;
-        size_t got = fread(buf, 1, to_read, fp);
-        if (got == 0) {
-            break;
-        }
-        ret = audio_amp_play_pcm((const int16_t *)buf, (uint32_t)got);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "wav PCM output failed: %s", esp_err_to_name(ret));
-            fclose(fp);
-            return ret;
-        }
-        remain -= got;
-    }
-
-    fclose(fp);
-    ESP_LOGI(TAG, "wav play done: %s", path);
-    return ESP_OK;
-}
-
-esp_err_t audio_amp_mute(void)
-{
-    if (s_tx_chan == NULL) return ESP_ERR_INVALID_STATE;
-    /* 通过同一条 PCM 队列送静音，避免与输出任务并发写 I2S。 */
-    static const int16_t zero[512] = {0};
-    return audio_amp_play_pcm(zero, sizeof(zero));
 }
 
 static void audio_amp_deinit_locked(void)

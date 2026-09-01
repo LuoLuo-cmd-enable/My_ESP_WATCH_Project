@@ -33,57 +33,6 @@ static const char *TAG = "SD";
 static int sd_scan_file_count(void);
 static esp_err_t sd_card_send_idle_sequence(sdmmc_card_t *card);
 
-
-/**
- * @brief 测试用：向指定路径写入字符串（调试/验证文件系统可用性）
- * @param[in] path 文件完整路径，如 "/sdcard/test.txt"
- * @param[in] data 要写入的字符串
- * @return ESP_OK 成功 / ESP_FAIL 打开文件失败
- */
-static esp_err_t s_example_write_file(const char *path, char *data)
-{
-    ESP_LOGI(TAG, "Opening file %s", path);
-    FILE *f = fopen(path, "w");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for writing");
-        return ESP_FAIL;
-    }
-    fprintf(f, data);
-    fclose(f);
-    ESP_LOGI(TAG, "File written");
-
-    return ESP_OK;
-}
-
-/**
- * @brief 测试用：从指定路径读取第一行并打印（调试/验证文件系统可用性）
- * @param[in] path 文件完整路径，如 "/sdcard/test.txt"
- * @return ESP_OK 成功 / ESP_FAIL 打开文件失败
- */
-static esp_err_t s_example_read_file(const char *path)
-{
-    ESP_LOGI(TAG, "Reading file %s", path);
-    FILE *f = fopen(path, "r");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for reading");
-        return ESP_FAIL;
-    }
-    char line[EXAMPLE_MAX_CHAR_SIZE];
-    fgets(line, sizeof(line), f);
-    fclose(f);
-
-    // strip newline
-    char *pos = strchr(line, '\n');
-    if (pos) {
-        *pos = '\0';
-    }
-    ESP_LOGI(TAG, "Read from file: '%s'", line);
-
-    return ESP_OK;
-}
-
-
-
 /**
  * @brief 整合后的SD卡初始化函数：初始化SD卡 + 预扫描数量 + 初始化列表 + 遍历文件
  */
@@ -181,7 +130,7 @@ esp_err_t SD_card_init(void)
         return ret;
     }
 
-    // 4. 遍历SD卡文件并存储到结构体（原有逻辑不变）
+    // 4. 遍历SD卡文件并存储到结构体
     ret = sd_scan_root_files_save_paths();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "SD卡文件遍历失败！");
@@ -287,8 +236,6 @@ sdmmc_card_t* SD_card_get_card(void)
 // ====== 新增：全局阅读进度变量 ======
 long g_file_offset = 0;        // 当前读取的文件偏移量（记录到哪一页）
 static const int g_read_len = 450;    // 每页读取500字节（和你原代码一致）
-// 复用你原有的缓冲区定义（移到全局，避免重复定义）
-const char *novel_path = MOUNT_POINT"/宿命之环.txt";
 char read_buf[1024] = {0};
 char display_buf[1200] = {0};
 // ===================================

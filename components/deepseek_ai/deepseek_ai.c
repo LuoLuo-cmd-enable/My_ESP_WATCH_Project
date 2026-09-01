@@ -130,9 +130,9 @@ exit:
 
 /* ------------------------------------------------------------------ */
 
-/* 采用与 get_weather.c 相同的同步读取模式（工程内已验证稳定）：
- *   esp_http_client_open → fetch_headers → read_response
- * 不再使用 perform + event_handler（该路径内部缓冲管理疑似导致 CORRUPT HEAP） */
+/* 采用与 get_weather.c 相同的同步读取模式：
+ * esp_http_client_open → fetch_headers → read_response
+ */
 static esp_err_t ai_http_post(const char *body, char *out_buf, size_t out_cap)
 {
     if (body == NULL || out_buf == NULL || out_cap == 0) return ESP_ERR_INVALID_ARG;
@@ -247,6 +247,7 @@ static void ai_task(void *param)
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
+        //一直等待LVGL按键或者键盘回调deepseek_ai_ask函数释放信号量
         if (xSemaphoreTake(s_ai_trigger_sem, portMAX_DELAY) != pdTRUE) {
             continue;
         }

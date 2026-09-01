@@ -12,20 +12,22 @@
 #define LCD_WIDTH       240
 #define LCD_HEIGHT      284
 
-#define DEFAULT_WIFI_SSID           "iqoo24g"
-#define DEFAULT_WIFI_PASSWORD       "12345678"
-
 extern EventGroupHandle_t lvgl_runtime_event_group;
 
 #define LVGL_RT_BIT_TASK_READY   BIT0
 #define LVGL_RT_BIT_PAUSED_ACK   BIT1  //设置事件用于LVGL与睡眠任务之间协同
 #define LVGL_RT_BIT_IN_HANDLER   BIT2
 
+#define NO_FONT_20  "请等待SD卡加载完成..."
+
 void lvgl_diaplay_task(void *param);
 void print_memory_info(const char *label);
 void system_diag_snapshot(const char *reason);
 void lvgl_runtime_health_tick(void);
 bool lvgl_wait_for_pause_ack(uint32_t timeout_ms);
+/* AI 屏整屏占位标志：字库未就绪进入 AI 屏时置位，就绪后由 SD_FONT_READY 重建真实界面 */
+void lvgl_set_ai_placeholder(bool active);
+bool lvgl_ai_placeholder_active(void);
 void lvgl_runtime_clear_pause_ack(void);
 bool lvgl_is_owner_task(void);
 bool lvgl_thread_guard(const char *tag);

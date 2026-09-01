@@ -83,6 +83,7 @@ static inline void unlock_data(void)
     }
 }
 
+/* 查找当前文件类型是否符合需要的文件类型 */
 static bool ext_match(const char *name, const char *filters)
 {
     if (name == NULL) return false;

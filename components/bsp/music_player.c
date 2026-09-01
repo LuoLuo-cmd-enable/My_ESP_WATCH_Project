@@ -36,6 +36,7 @@ typedef struct {
     uint32_t file_size;
     char     wave[4];
     char     fmt[4];
+    /* 一般是16字节 */
     uint32_t fmt_size;
     uint16_t audio_fmt;
     uint16_t channels;
@@ -43,6 +44,7 @@ typedef struct {
     uint32_t byte_rate;
     uint16_t block_align;
     uint16_t bits_per_sample;
+    /*-------------*/
     char     data[4];
     uint32_t data_size;
 } wav_header_t;
@@ -319,7 +321,7 @@ static void music_player_task(void *arg)
 {
     (void)arg;
 
-    for (;;) {
+    while(1){
         /* 无歌可播（已 stop/关闭）：等待 play 设置路径 */
         if (s_music_path[0] == '\0') {
             vTaskSuspend(NULL);

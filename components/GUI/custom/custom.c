@@ -5,6 +5,8 @@
 #include "lvgl.h"
 #include "ui_transition.h"
 #include "battery_widget.h"
+#include "font_sd.h"
+#include "lvgl_display.h"
 
 extern lv_ui guider_ui;
 
@@ -71,9 +73,52 @@ static void custom_btn_music_cb(lv_event_t *e)
                           LV_SCR_LOAD_ANIM_NONE, 0, 0, false, true);
 }
 
+static void ai_placeholder_gesture_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_GESTURE) return;
+    lv_indev_t *indev = lv_indev_get_act();
+    if (indev == NULL) return;
+    if (lv_indev_get_gesture_dir(indev) == LV_DIR_RIGHT) {
+        /* 右滑返回主菜单 */
+        lvgl_set_ai_placeholder(false);
+        ui_load_scr_with_zoom(&guider_ui, &guider_ui.menu_screen,
+                              guider_ui.menu_screen_del,
+                              &guider_ui.screen_ai_chat_del,
+                              setup_scr_menu_screen,
+                              LV_SCR_LOAD_ANIM_NONE, 0, 0, false, false);
+    }
+}
+
 static void custom_btn_ai_cb(lv_event_t *e)
 {
     set_click_center(e);
+
+    /* 字库未就绪：整屏占位（不创建中文快捷按钮，避免乱码），
+     * 就绪后由 LVGL_MSG_SD_FONT_READY 重建真实 AI 界面 */
+    if (!font_sd_is_ready()) {
+        if (guider_ui.screen_ai_chat != NULL && lv_obj_is_valid(guider_ui.screen_ai_chat)) {
+            lv_obj_del(guider_ui.screen_ai_chat);
+        }
+        guider_ui.screen_ai_chat = lv_obj_create(NULL);
+        lv_obj_set_size(guider_ui.screen_ai_chat, 240, 284);
+        lv_obj_clear_flag(guider_ui.screen_ai_chat, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_style_bg_color(guider_ui.screen_ai_chat, lv_color_hex(0x0B1220),
+                                  LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_opa(guider_ui.screen_ai_chat, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_add_event_cb(guider_ui.screen_ai_chat, ai_placeholder_gesture_cb,
+                            LV_EVENT_GESTURE, NULL);
+
+        lv_obj_t *lbl = lv_label_create(guider_ui.screen_ai_chat);
+        lv_label_set_text(lbl, NO_FONT_20);  /* 请等待SD卡加载完成... */
+        lv_obj_set_style_text_color(lbl, lv_color_hex(0xC8CDD6), 0);
+        lv_obj_set_style_text_font(lbl, (lv_font_t *)&songti_font_16, 0);
+        lv_obj_center(lbl);
+
+        lvgl_set_ai_placeholder(true);
+        lv_scr_load(guider_ui.screen_ai_chat);
+        return;
+    }
+
     ui_load_scr_with_zoom(&guider_ui, &guider_ui.screen_ai_chat, guider_ui.screen_ai_chat_del,
                           &guider_ui.menu_screen_del, setup_scr_screen_ai_chat,
                           LV_SCR_LOAD_ANIM_NONE, 0, 0, false, true);

@@ -23,4 +23,10 @@ esp_err_t font_sd_init(void);
  */
 lv_font_t *font_sd_get(void);
 
+/**
+ * @brief SD 字库是否已完全加载完成
+ * @return true=已就绪（或加载失败已回退，可正常显示） false=仍在加载中
+ */
+bool font_sd_is_ready(void);
+
 #endif /* _FONT_SD_H_ */

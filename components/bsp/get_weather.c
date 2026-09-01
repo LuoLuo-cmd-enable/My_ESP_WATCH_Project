@@ -96,6 +96,67 @@ static void safe_copy_str(char *dst, size_t dst_size, const char *src)
     dst[dst_size - 1] = '\0';
 }
 
+/* 
+    {
+	"results":	[{
+			"location":	{
+				"id":	"WS0GHKN5ZP7T",
+				"name":	"东莞",
+				"country":	"CN",
+				"path":	"东莞,东莞,广东,中国",
+				"timezone":	"Asia/Shanghai",
+				"timezone_offset":	"+08:00"
+			},
+			"daily":	[{
+					"date":	"2026-08-28",
+					"text_day":	"小雨",
+					"code_day":	"13",
+					"text_night":	"多云",
+					"code_night":	"4",
+					"high":	"31",
+					"low":	"25",
+					"rainfall":	"1.92",
+					"precip":	"0.37",
+					"wind_direction":	"西北",
+					"wind_direction_degree":	"315",
+					"wind_speed":	"23.4",
+					"wind_scale":	"4",
+					"humidity":	"95"
+				}, {
+					"date":	"2026-08-29",
+					"text_day":	"雷阵雨",
+					"code_day":	"11",
+					"text_night":	"雷阵雨",
+					"code_night":	"11",
+					"high":	"34",
+					"low":	"26",
+					"rainfall":	"5.61",
+					"precip":	"0.49",
+					"wind_direction":	"无持续风向",
+					"wind_direction_degree":	"",
+					"wind_speed":	"8.4",
+					"wind_scale":	"2",
+					"humidity":	"93"
+				}, {
+					"date":	"2026-08-30",
+					"text_day":	"大雨",
+					"code_day":	"15",
+					"text_night":	"雷阵雨",
+					"code_night":	"11",
+					"high":	"31",
+					"low":	"25",
+					"rainfall":	"18.85",
+					"precip":	"0.87",
+					"wind_direction":	"无持续风向",
+					"wind_direction_degree":	"",
+					"wind_speed":	"3.0",
+					"wind_scale":	"1",
+					"humidity":	"99"
+				}],
+			"last_update":	"2026-08-28T08:00:00+08:00"
+		}]
+    }
+*/
 static bool parse_weather_json(const char *json, weather_snapshot_t *out)
 {
     if (json == NULL || out == NULL) return false;
@@ -160,7 +221,7 @@ static esp_err_t weather_http_get(char *out_buf, size_t out_cap)
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client == NULL) return ESP_FAIL;
 
-    //这里进行DNS解析（这里内部会通过在DHCP响应已经获取的DNS服务器地址进行DNS数据包的请求） → TCP连接 → 发送GET请求报文
+    //这里进行DNS解析（这里内部会通过在DHCP响应已经获取的DNS服务器地址进行DNS数据包的请求） → TCP连接3次握手 → 发送GET请求报文
     esp_err_t err = esp_http_client_open(client, 0);
     if (err != ESP_OK) {
         esp_http_client_cleanup(client);

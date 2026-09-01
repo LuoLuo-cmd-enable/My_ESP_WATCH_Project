@@ -82,3 +82,9 @@ lv_font_t *font_sd_get(void)
 {
     return &s_sd_font;
 }
+
+bool font_sd_is_ready(void)
+{
+    /* 加载失败已回退内置字体也算“就绪”（可正常显示，无需等待） */
+    return !s_font_loading;
+}

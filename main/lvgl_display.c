@@ -89,7 +89,7 @@ static void ota_pending_report_handle(void)
             nvs_commit(ota_nvs);
             nvs_close(ota_nvs);
         }
-        wifi_manager_start();
+        wifi_manager_start();/* 只有升级后重启wifi才会打开否则默认是关闭的! */
     } else {
         wifi_manager_stop(); /* default OFF; enable via quick panel */
     }
@@ -114,6 +114,20 @@ SemaphoreHandle_t xGuiSemaphore = NULL;
 volatile bool g_is_sleeping = false;
 // Wake tick timestamp, touch input suppressed for 500 ms after wake
 volatile uint32_t g_wake_tick = 0;
+
+/* AI 屏整屏占位状态：字库未就绪时进入 AI 屏会先显示整屏“请等待...”，
+ * 就绪后 SD_FONT_READY 消息负责重建真实 AI 界面 */
+static bool s_ai_placeholder = false;
+
+void lvgl_set_ai_placeholder(bool active)
+{
+    s_ai_placeholder = active;
+}
+
+bool lvgl_ai_placeholder_active(void)
+{
+    return s_ai_placeholder;
+}
 
 static uint32_t s_diag_seq = 0;
 static uint32_t s_last_health_ms = 0;
@@ -179,6 +193,31 @@ void lvgl_runtime_clear_pause_ack(void)
     }
 }
 
+// Print memory usage statistics to serial log
+void print_memory_info(const char *label)
+{
+    ESP_LOGI(TAG, "========== %s ==========", label);
+    ESP_LOGI(TAG, "INTERNAL: total=%6d KB  free=%6d KB  min_free=%6d KB",
+             heap_caps_get_total_size(MALLOC_CAP_INTERNAL) / 1024,
+             heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024,
+             heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL) / 1024);
+
+    ESP_LOGI(TAG, "DMA:     total=%6d KB  free=%6d KB  min_free=%6d KB",
+             heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA) / 1024,
+             heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA) / 1024,
+             heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA) / 1024);
+
+    ESP_LOGI(TAG, "PSRAM:   total=%6d KB  free=%6d KB  min_free=%6d KB",
+             heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024,
+             heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024,
+             heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM) / 1024);
+
+    ESP_LOGI(TAG, "Largest free block: INTERNAL=%d KB  PSRAM=%d KB",
+             heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024,
+             heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024);
+    ESP_LOGI(TAG, "====================================");
+}
+
 void system_diag_snapshot(const char *reason)
 {
     display_flush_state_t flush_state = {0};
@@ -194,15 +233,15 @@ void system_diag_snapshot(const char *reason)
     UBaseType_t hwm_storage = storage_worker_stack_hwm();
 
     ESP_LOGI(TAG,
-             "[DIAG#%lu] reason=%s q=%u q_storage=%u lvgl_hwm=%u storage_hwm=%u sntp_hwm=%u sntp_itv_hwm=%u",
+             "[DIAG#%lu] reason=%s q=%u lvgl_hwm=%u sntp_hwm=%u sntp_itv_hwm=%u q_storage=%u storage_hwm=%u",
              (unsigned long)++s_diag_seq,
              reason ? reason : "none",
              (unsigned int)q_waiting,
-             (unsigned int)q_storage,
              (unsigned int)hwm_lvgl,
-             (unsigned int)hwm_storage,
              (unsigned int)hwm_sntp,
-             (unsigned int)hwm_sntp_itv);
+             (unsigned int)hwm_sntp_itv,
+             (unsigned int)q_storage,
+             (unsigned int)hwm_storage);
 
     ESP_LOGI(TAG,
              "[DIAG] free_int=%uKB min_int=%uKB free_psram=%uKB min_psram=%uKB flush_timeout=%lu queue_full=%lu ui_overrun=%lu video(drop=%lu,stop_to=%lu,last_wait=%lu,max_wait=%lu)",
@@ -281,6 +320,23 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(500));
 
     print_memory_info("[Boot] After LVGL task created");
+    /*                 
+            total:
+            lvgl任务8192B
+            sntp_time_task任务4096B
+            sntp_interval_task任务4096B
+            storage_worker任务8192B
+    
+    
+   [DIAG#1] reason=lvgl-task-started 
+            q=2 
+            lvgl_hwm=5824B
+            sntp_hwm=2148B
+            sntp_itv_hwm=2016B
+            q_storage=0 
+            storage_hwm=6380B
+
+                */
     system_diag_snapshot("lvgl-task-started");
     wifi_manager_init(wifi_state_handler);
     ota_pending_report_handle();   /* OTA 跳转后自动开 WiFi 上报新版本 */
@@ -531,6 +587,20 @@ static void render_novel_list(void)
 {
     if (!lvgl_thread_guard("render_novel_list")) return;
     if (guider_ui.novel_list_list_1 == NULL || !lv_obj_is_valid(guider_ui.novel_list_list_1)) return;
+
+    /* 字库未就绪：不创建中文按钮（避免乱码），先显示加载占位 */
+    if (!font_sd_is_ready()) {
+        lv_obj_clean(guider_ui.novel_list_list_1);
+        for (int i = 0; i < _LIST_NUMBER; ++i) {
+            guider_ui.novel_list_list_1_item[i] = NULL;
+        }
+        lv_obj_t *tip = lv_label_create(guider_ui.novel_list_list_1);
+        lv_label_set_text(tip, NO_FONT_20);  /* 请等待...（内部 songti 字库可显示） */
+        lv_obj_set_style_text_color(tip, lv_color_hex(0x666666), 0);
+        lv_obj_set_style_text_font(tip, font_sd_get(), 0);
+        key_nav_sync_to_current_screen(true);
+        return;
+    }
 
     static storage_file_entry_t *entries = NULL;
     size_t entry_cap = _LIST_NUMBER;
@@ -801,6 +871,11 @@ static void lvgl_process_msg_queue(void)
                 break;
 
             case LVGL_MSG_AI_ANSWER:
+                /* 字库未就绪时先显示占位提示，避免中文乱码；就绪后由 SD_FONT_READY 重绘 */
+                if (!font_sd_is_ready()) {
+                    ai_ui_show_answer(NO_FONT_20);  /* 字库加载中... */
+                    break;
+                }
                 /* 回答已存入组件静态缓冲，直接读取显示（无跨任务堆指针） */
                 ai_ui_show_answer(deepseek_ai_get_answer());
                 break;
@@ -868,6 +943,10 @@ static void lvgl_process_msg_queue(void)
                     setup_scr_novel_display,
                     LV_SCR_LOAD_ANIM_NONE,
                     200, 0, false, true);
+                /* 字库未就绪：先显示加载占位，就绪后由 SD_FONT_READY 重新同步正文 */
+                if (!font_sd_is_ready()) {
+                    update_novel_page_label(NO_FONT_20);  /* 字库加载中... */
+                }
                 storage_request_novel_page_sync();
                 break;
 
@@ -895,11 +974,30 @@ static void lvgl_process_msg_queue(void)
                 /* SD 字库异步加载完成：刷新已引用该字体的控件 */
                 if (guider_ui.novel_list_list_1 != NULL &&
                     lv_obj_is_valid(guider_ui.novel_list_list_1)) {
-                    lv_obj_invalidate(guider_ui.novel_list_list_1);
+                    /* 重建小说列表（此前未就绪时只显示了占位标签） */
+                    render_novel_list();
                 }
                 if (guider_ui.novel_display_label_1 != NULL &&
                     lv_obj_is_valid(guider_ui.novel_display_label_1)) {
+                    /* 字库就绪后重新取一次当前页正文，替换加载中的占位文字 */
+                    storage_request_novel_page_sync();
                     lv_obj_invalidate(guider_ui.novel_display_label_1);
+                }
+                /* AI 屏处于整屏占位态：重建真实 AI 界面（含中文快捷按钮） */
+                if (lvgl_ai_placeholder_active()) {
+                    lvgl_set_ai_placeholder(false);
+                    if (guider_ui.screen_ai_chat != NULL &&
+                        lv_obj_is_valid(guider_ui.screen_ai_chat)) {
+                        lv_obj_del(guider_ui.screen_ai_chat);
+                    }
+                    guider_ui.screen_ai_chat = NULL;
+                    setup_scr_screen_ai_chat(&guider_ui);
+                    lv_scr_load(guider_ui.screen_ai_chat);
+                }
+                if (guider_ui.screen_ai_chat_label_answer != NULL &&
+                    lv_obj_is_valid(guider_ui.screen_ai_chat_label_answer)) {
+                    /* 重绘 AI 屏（快捷问题按钮等中文控件用新字体重绘） */
+                    lv_obj_invalidate(guider_ui.screen_ai_chat_label_answer);
                 }
                 break;
 
@@ -1117,35 +1215,6 @@ static void update_time_timer_cb(lv_timer_t * timer)
     lv_label_set_text(guider_ui.clock_screen_label_date, date_buf);
 }
 
-
-// Print memory usage statistics to serial log
-void print_memory_info(const char *label)
-{
-    ESP_LOGI(TAG, "========== %s ==========", label);
-    ESP_LOGI(TAG, "INTERNAL: total=%6d KB  free=%6d KB  min_free=%6d KB",
-             heap_caps_get_total_size(MALLOC_CAP_INTERNAL) / 1024,
-             heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024,
-             heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL) / 1024);
-
-    ESP_LOGI(TAG, "DMA:     total=%6d KB  free=%6d KB  min_free=%6d KB",
-             heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA) / 1024,
-             heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA) / 1024,
-             heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA) / 1024);
-
-    ESP_LOGI(TAG, "PSRAM:   total=%6d KB  free=%6d KB  min_free=%6d KB",
-             heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024,
-             heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024,
-             heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM) / 1024);
-
-    ESP_LOGI(TAG, "Largest free block: INTERNAL=%d KB  PSRAM=%d KB",
-             heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024,
-             heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024);
-    ESP_LOGI(TAG, "====================================");
-}
-
-
-
-
 void lvgl_msg_queue_init(void)
 {
     lvgl_msg_queue = xQueueCreate(LVGL_MSG_QUEUE_LEN, sizeof(lvgl_msg_t));
@@ -1186,6 +1255,7 @@ static size_t utf8_sequence_len(uint8_t lead)
     return 0;
 }
 
+//将数据安全的拷贝到dst数据区域
 static void copy_utf8_trunc(char *dst, size_t cap, const char *src)
 {
     if (dst == NULL || cap == 0) return;
