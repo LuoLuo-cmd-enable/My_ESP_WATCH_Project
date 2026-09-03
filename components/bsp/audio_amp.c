@@ -233,11 +233,11 @@ esp_err_t audio_amp_play_pcm(const int16_t *data, uint32_t len)
         }
         uint32_t bytes = len - queued;
         if (bytes > AUDIO_RING_BLOCK_SIZE) bytes = AUDIO_RING_BLOCK_SIZE;
-         bytes &= ~1U;
-         for (uint32_t i = 0; i < bytes / sizeof(int16_t); i++) {
-             int32_t sample = ((const int16_t *)(buffer + queued))[i];
-             scaled_block[i] = (int16_t)((sample * AUDIO_OUTPUT_VOLUME_PERCENT) / 100);
-         }
+        bytes &= ~1U;
+        for (uint32_t i = 0; i < bytes / sizeof(int16_t); i++) {
+            int32_t sample = ((const int16_t *)(buffer + queued))[i];
+            scaled_block[i] = (int16_t)((sample * AUDIO_OUTPUT_VOLUME_PERCENT) / 100);
+        }
         memcpy(s_pcm_ring + s_ring_write * AUDIO_RING_BLOCK_SIZE,
              scaled_block, bytes);
         if (bytes < AUDIO_RING_BLOCK_SIZE) {

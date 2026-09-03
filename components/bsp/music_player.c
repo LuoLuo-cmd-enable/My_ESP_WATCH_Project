@@ -144,7 +144,7 @@ static void handle_seek(FILE *fp, long data_offset, uint32_t bytes_per_sec,
     }
 }
 
-/* 判断文件是否为 MP3（按扩展名） */
+/* 判断文件是否为 MP3（按扩展名）/sdcard/music/xxx.mp3 */
 static bool is_mp3_path(const char *path)
 {
     if (path == NULL) return false;
@@ -159,7 +159,7 @@ static bool is_mp3_path(const char *path)
  * ================================================================ */
 static void play_mp3_loop(FILE *fp)
 {
-    /* mp3dec_t 约 6.7KB + pcm 4.6KB：必须放 heap（PSRAM），否则爆 8KB 任务栈 */
+    /* 解码器状态（跨帧记忆）6.7KB */
     mp3dec_t *dec = heap_caps_malloc(sizeof(mp3dec_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (dec == NULL) dec = malloc(sizeof(mp3dec_t));
     if (dec == NULL) {
@@ -168,6 +168,7 @@ static void play_mp3_loop(FILE *fp)
     }
     mp3dec_init(dec);
 
+    /* 解码输出 PCM 4.6KB双声道需要预留1152(每帧的样本数)*2(通道数量)*2立体声需要降混 */
     int16_t *pcm = heap_caps_malloc(MP3_PCM_SAMPLES * 2 * sizeof(int16_t),
                                     MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (pcm == NULL) pcm = malloc(MP3_PCM_SAMPLES * 2 * sizeof(int16_t));
@@ -177,6 +178,7 @@ static void play_mp3_loop(FILE *fp)
         return;
     }
 
+    /* 压缩数据输入缓冲 64KB */
     uint8_t *in_buf = heap_caps_malloc(MP3_IN_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (in_buf == NULL) in_buf = malloc(MP3_IN_BUF_SIZE);
     if (in_buf == NULL) {
@@ -185,29 +187,35 @@ static void play_mp3_loop(FILE *fp)
         free(pcm);
         return;
     }
-    uint32_t level_acc = 0;
-    uint32_t level_cnt = 0;
-    bool muted = false;
-    bool sr_inited = false;
-    uint32_t mp3_sample_rate = 0;
+    uint32_t level_acc = 0;         /* 8帧的电平累加值 */
+    uint32_t level_cnt = 0;         /* 已累加帧数，到8就刷新 s_level */
+    bool muted = false;             /* 暂停时 I2S 是否已关断 */
+    bool sr_inited = false;         /* I2S 是否已按首帧采样率配好 */
+    uint32_t mp3_sample_rate = 0;   /* 记录采样率，恢复播放时重新 init 用 */
 
     /* 初始填充输入缓冲 */
     ESP_LOGD(TAG, "mp3: read head...");
-    size_t buf_len = fread(in_buf, 1, MP3_IN_BUF_SIZE, fp);
+    size_t buf_len = fread(in_buf, 1, MP3_IN_BUF_SIZE, fp);         /* in_buf 中有效数据的字节数 */
     ESP_LOGD(TAG, "mp3: head read %u bytes", (unsigned)buf_len);
-    size_t buf_pos = 0;
-    uint32_t frame_cnt = 0;
-    int decode_fail_cnt = 0;   /* 连续解码失败计数 */
-    uint32_t last_progress = xTaskGetTickCount();   /* 无进展看门狗 */
-    bool watchdog_armed = true;
+    size_t buf_pos = 0;                                             /* 已解码消费到的位置（光标） */
+    uint32_t frame_cnt = 0;                                         /* 已解帧数，每200帧打印日志 */
+    int decode_fail_cnt = 0;                                        /* 连续解码失败计数 */
+    uint32_t last_progress = xTaskGetTickCount();                   /* 无进展看门狗 */
+    bool watchdog_armed = true;                                     /* 看门狗是否启用 */
 
     while (buf_len > 0 && s_state != MUSIC_STATE_STOP) {
         /* 换歌 */
-        if (s_switch_req) { s_switch_req = false; break; }
+        if (s_switch_req) {
+            s_switch_req = false; 
+            break; 
+        }
         /* 暂停 */
         if (s_state == MUSIC_STATE_PAUSED) {
             last_progress = xTaskGetTickCount();   /* 暂停不算卡死 */
-            if (!muted) { audio_amp_deinit(); muted = true; }
+            if (!muted) { 
+                audio_amp_deinit(); 
+                muted = true; 
+            }
             vTaskDelay(pdMS_TO_TICKS(20));
             continue;
         }
@@ -327,7 +335,7 @@ static void music_player_task(void *arg)
             vTaskSuspend(NULL);
             continue;
         }
-
+        /* 这里的s_music_path是fullpath */
         FILE *fp = fopen(s_music_path, "rb");
         if (fp == NULL) {
             ESP_LOGE(TAG, "open %s failed", s_music_path);

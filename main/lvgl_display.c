@@ -759,6 +759,7 @@ static void music_switch_by_delta(int delta)
     s_music_cur_idx = (s_music_cur_idx + delta) % (int)s_music_count;
     if (s_music_cur_idx < 0) s_music_cur_idx += (int)s_music_count;
 
+    //传递的是完整路径
     music_player_play(s_music_entries[s_music_cur_idx].full_path);
 
     /* 已进入播放屏则只刷新信息，否则切入 */

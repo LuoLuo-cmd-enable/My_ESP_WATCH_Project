@@ -53,11 +53,6 @@ float battery_get_voltage_v(void);
  */
 uint8_t battery_get_percent(void);
 
-/**
- * @brief 获取电量等级（0~4，LVGL 图标用）
- * @return battery_level_t
- */
-battery_level_t battery_get_level(void);
 
 #endif /* __BATTERY_MANAGEMENT */
 

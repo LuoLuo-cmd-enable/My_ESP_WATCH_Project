@@ -35,9 +35,4 @@ battery_widget_t *battery_widget_create(lv_obj_t *parent, int x, int y);
  */
 void battery_widget_refresh(battery_widget_t *widget);
 
-/**
- * @brief 销毁组件
- */
-void battery_widget_destroy(battery_widget_t *widget);
-
 #endif /* _BATTERY_WIDGET_H_ */

@@ -147,15 +147,6 @@ uint8_t battery_get_percent(void)
     return (uint8_t)percent; */
 }
 
-battery_level_t battery_get_level(void)
-{
-    uint8_t pct = battery_get_percent();
-    if (pct <= 20)      return BATTERY_LEVEL_0;
-    if (pct <= 40)      return BATTERY_LEVEL_1;
-    if (pct <= 60)      return BATTERY_LEVEL_2;
-    if (pct <= 80)      return BATTERY_LEVEL_3;
-    return BATTERY_LEVEL_4;
-}
 
 
 

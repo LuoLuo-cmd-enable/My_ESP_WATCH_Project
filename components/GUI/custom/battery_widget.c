@@ -20,7 +20,9 @@
 /* 电量颜色阈值（高饱和鲜艳色，黑底上醒目） */
 #define BATTERY_COLOR_CRITICAL  20   /* ≤20% 亮红 */
 #define BATTERY_COLOR_LOW       50   /* ≤50% 亮黄 */
-#define BATTERY_COLOR_GOOD      0x00E676  /* >50% 亮绿（荧光绿） */
+#define BATTERY_COLOR_GREEN      0x00E676  /* >50% 亮绿 */
+#define BATTERY_COLOR_RED      0xF44336  /* >50% 亮红 */
+#define BATTERY_COLOR_YELLOW      0xFFC107  /* >50% 亮黄 */
 
 battery_widget_t *battery_widget_create(lv_obj_t *parent, int x, int y)
 {
@@ -93,11 +95,11 @@ void battery_widget_refresh(battery_widget_t *w)
     lv_obj_set_width(w->fill, fill_w);
 
     /* 按电量变色 */
-    uint32_t color = BATTERY_COLOR_GOOD;
+    uint32_t color = BATTERY_COLOR_GREEN;
     if (pct <= BATTERY_COLOR_CRITICAL) {
-        color = 0xF44336;                    /* 红 */
+        color = BATTERY_COLOR_RED;
     } else if (pct <= BATTERY_COLOR_LOW) {
-        color = 0xFFC107;                    /* 黄 */
+        color = BATTERY_COLOR_YELLOW; 
     }
     lv_obj_set_style_bg_color(w->fill, lv_color_hex(color), 0);
     lv_obj_set_style_bg_opa(w->fill, LV_OPA_COVER, 0);
@@ -108,10 +110,3 @@ void battery_widget_refresh(battery_widget_t *w)
     lv_label_set_text(w->label, buf);
 }
 
-void battery_widget_destroy(battery_widget_t *w)
-{
-    if (w == NULL) return;
-    lv_obj_del(w->label);
-    lv_obj_del(w->cont);   /* fill 是 cont 的子对象，随 cont 删除 */
-    lv_mem_free(w);
-}
